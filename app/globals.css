@@ -1,0 +1,145 @@
+/* ===== IMPORT DAS FONTES (DEVE VIR PRIMEIRO!) ===== */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+
+/* Tailwind CSS */
+@import "tailwindcss";
+
+/* ===== VARIÁVEIS DE COR PREMIUM ===== */
+:root {
+  --navy: #0B1F33;
+  --navy-light: #172a3d;
+  --off-white: #F7F5F0;
+  --gold: #A9823A;
+  --gold-light: #C5A45A;
+  --text-primary: #17212B;
+  --text-secondary: #707780;
+  --positive: #2F6B57;
+  --negative: #A94B4B;
+  --warning: #B8860B;
+}
+
+/* ===== BASE ===== */
+body {
+  font-family: 'Manrope', sans-serif;
+  background-color: var(--off-white);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== TIPOGRAFIA PREMIUM ===== */
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-body {
+  font-family: 'Manrope', sans-serif;
+}
+
+/* ===== CARDS PREMIUM ===== */
+.card-premium {
+  background: white;
+  border: 1px solid rgba(11, 31, 51, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(11, 31, 51, 0.04);
+  transition: all 0.2s ease;
+}
+
+.card-premium:hover {
+  box-shadow: 0 4px 12px rgba(11, 31, 51, 0.08);
+}
+
+.card-gold {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  border: 1px solid var(--gold);
+  border-radius: 16px;
+  color: white;
+}
+
+/* ===== HEADER PREMIUM ===== */
+.header-premium {
+  background: white;
+  border-bottom: 1px solid rgba(11, 31, 51, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+/* ===== BOTÕES PREMIUM ===== */
+.btn-primary {
+  background: var(--navy);
+  color: white;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--navy-light);
+  transform: translateY(-1px);
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: white;
+  border-radius: 8px;
+}
+
+.btn-gold:hover {
+  background: var(--gold-light);
+}
+
+/* ===== BADGES PREMIUM ===== */
+.badge-premium {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* ===== PROGRESS BAR PREMIUM ===== */
+.progress-premium {
+  height: 6px;
+  background: rgba(11, 31, 51, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-premium-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* ===== SCROLLBAR PREMIUM ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--off-white);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+  border-radius: 999px;
+}
+
+/* ===== ANIMAÇÕES ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* ===== UTILITÁRIOS ===== */
+.text-navy { color: var(--navy); }
+.text-gold { color: var(--gold); }
+.text-positive { color: var(--positive); }
+.text-negative { color: var(--negative); }
+.bg-navy { background-color: var(--navy); }
+.bg-gold { background-color: var(--gold); }
+.bg-off-white { background-color: var(--off-white); }
+.border-navy { border-color: var(--navy); }
+.border-gold { border-color: var(--gold); }
