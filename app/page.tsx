@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Check, AlertTriangle, TrendingUp, Wallet, Calendar, User, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Plus, Check, AlertTriangle, TrendingUp, Wallet, Calendar, User, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, BarChart3, DollarSign, Download, FileSpreadsheet, FileText, LogOut, Bell } from 'lucide-react';
 import { supabase } from './supabase';
+import { exportToExcel, exportToPDF, formatTransactionsForExport, formatGoalsForExport, formatPatrimonyForExport } from './utils/export';
 
 // ===== UTILITÁRIOS =====
 const formatBRL = (value: number) =>
@@ -36,35 +37,63 @@ const generateMockData = () => {
       { id: 'c1', name: 'Felipe', type: 'receita' },
       { id: 'c2', name: 'Camila', type: 'receita' },
       { id: 'c3', name: 'Salário', type: 'receita' },
-      { id: 'c4', name: 'Outros', type: 'receita' },
-      { id: 'c5', name: 'Mercado', type: 'despesa_variavel' },
-      { id: 'c6', name: 'Aluguel', type: 'despesa_fixa' },
-      { id: 'c7', name: 'Luz', type: 'despesa_fixa' },
-      { id: 'c8', name: 'Ações', type: 'investimento' },
-      { id: 'c9', name: 'FIIs', type: 'investimento' },
-      { id: 'c10', name: 'Dólar', type: 'investimento' },
+      { id: 'c4', name: 'Freelance', type: 'receita' },
+      { id: 'c5', name: 'Dividendos', type: 'receita' },
+      { id: 'c6', name: 'Outros', type: 'receita' },
+      { id: 'c7', name: 'Aluguel', type: 'despesa_fixa' },
+      { id: 'c8', name: 'Condomínio', type: 'despesa_fixa' },
+      { id: 'c9', name: 'Luz', type: 'despesa_fixa' },
+      { id: 'c10', name: 'Gás', type: 'despesa_fixa' },
+      { id: 'c11', name: 'Água', type: 'despesa_fixa' },
+      { id: 'c12', name: 'Internet', type: 'despesa_fixa' },
+      { id: 'c13', name: 'IPTU', type: 'despesa_fixa' },
+      { id: 'c14', name: 'Seguro', type: 'despesa_fixa' },
+      { id: 'c15', name: 'Escola', type: 'despesa_fixa' },
+      { id: 'c16', name: 'Mensalidade', type: 'despesa_fixa' },
+      { id: 'c17', name: 'Mercado', type: 'despesa_variavel' },
+      { id: 'c18', name: 'Farmácia', type: 'despesa_variavel' },
+      { id: 'c19', name: 'Obra', type: 'despesa_variavel' },
+      { id: 'c20', name: 'Casa', type: 'despesa_variavel' },
+      { id: 'c21', name: 'Transporte', type: 'despesa_variavel' },
+      { id: 'c22', name: 'Restaurante', type: 'despesa_variavel' },
+      { id: 'c23', name: 'Lazer', type: 'despesa_variavel' },
+      { id: 'c24', name: 'Vestuário', type: 'despesa_variavel' },
+      { id: 'c25', name: 'Beleza', type: 'despesa_variavel' },
+      { id: 'c26', name: 'Pet', type: 'despesa_variavel' },
+      { id: 'c27', name: 'Cartão de Crédito', type: 'despesa_variavel' },
+      { id: 'c28', name: 'Outros', type: 'despesa_variavel' },
+      { id: 'c29', name: 'Ações', type: 'investimento' },
+      { id: 'c30', name: 'FIIs', type: 'investimento' },
+      { id: 'c31', name: 'Renda Fixa', type: 'investimento' },
+      { id: 'c32', name: 'Dólar', type: 'investimento' },
+      { id: 'c33', name: 'Cripto', type: 'investimento' },
+      { id: 'c34', name: 'Tesouro Direto', type: 'investimento' },
+      { id: 'c35', name: 'Outros', type: 'investimento' },
+      { id: 'c36', name: 'Reserva de Emergência', type: 'reserva' },
+      { id: 'c37', name: 'Fundo de Viagem', type: 'reserva' },
+      { id: 'c38', name: 'Outros', type: 'reserva' },
     ],
     budgets: [
-      { id: 'b1', category_id: 'c5', monthly_limit: 1000, alert_threshold_percentage: 85 },
-      { id: 'b2', category_id: 'c7', monthly_limit: 300, alert_threshold_percentage: 85 },
+      { id: 'b1', category_id: 'c17', monthly_limit: 1000, alert_threshold_percentage: 85 },
+      { id: 'b2', category_id: 'c9', monthly_limit: 300, alert_threshold_percentage: 85 },
     ],
     goals: [
-      { id: 'g1', title: ' Nossa Casa', icon: '🏠', goal_type: 'imovel', target_amount: 500000, current_amount: 87500, monthly_target: 3000 },
+      { id: 'g1', title: '🏠 Nossa Casa', icon: '🏠', goal_type: 'imovel', target_amount: 500000, current_amount: 87500, monthly_target: 3000 },
       { id: 'g2', title: '✈️ Viagem', icon: '✈️', goal_type: 'viagem', target_amount: 25000, current_amount: 12000, monthly_target: 1500 },
-      { id: 'g3', title: '🚗 Carro', icon: '', goal_type: 'veiculo', target_amount: 80000, current_amount: 15000, monthly_target: 2000 },
+      { id: 'g3', title: '🚗 Carro', icon: '🚗', goal_type: 'veiculo', target_amount: 80000, current_amount: 15000, monthly_target: 2000 },
       { id: 'g4', title: '🛡️ Reserva Financeira', icon: '🛡️', goal_type: 'reserva', target_amount: 50000, current_amount: 30000, monthly_target: 1000 },
       { id: 'g5', title: '🎓 Educação', icon: '🎓', goal_type: 'educacao', target_amount: 40000, current_amount: 8000, monthly_target: 800 },
     ],
     transactions: [
       { id: 't1', created_by: 'Felipe', date: dateStr(5), amount: 8000, type: 'receita', category_id: 'c1', status: 'realized', is_unexpected: false, description: 'Salário Mensal' },
       { id: 't2', created_by: 'Camila', date: dateStr(5), amount: 6000, type: 'receita', category_id: 'c2', status: 'realized', is_unexpected: false, description: 'Salário Mensal' },
-      { id: 't3', created_by: 'Felipe', date: dateStr(10), amount: 880, type: 'despesa_variavel', category_id: 'c5', status: 'realized', is_unexpected: false, description: 'Compras do mês' },
-      { id: 't4', created_by: 'Camila', date: dateStr(12), amount: 2500, type: 'despesa_fixa', category_id: 'c6', status: 'realized', is_unexpected: false, description: 'Aluguel' },
-      { id: 't5', created_by: 'Felipe', date: dateStr(15), amount: 320, type: 'despesa_fixa', category_id: 'c7', status: 'realized', is_unexpected: true, description: 'Conta de luz alta' },
-      { id: 't6', created_by: 'Camila', date: dateStr(20), amount: 500, type: 'investimento', category_id: 'c8', status: 'realized', is_unexpected: false, description: 'Aporte mensal' },
-      { id: 't7', created_by: 'Felipe', date: dateStr(20), amount: 300, type: 'investimento', category_id: 'c9', status: 'realized', is_unexpected: false, description: 'Aporte FIIs' },
-      { id: 't8', created_by: 'Camila', date: dateStr(20), amount: 100, type: 'investimento', category_id: 'c10', status: 'realized', is_unexpected: false, description: 'Compra USD' },
-      { id: 't9', created_by: 'Felipe', date: dateStr(25), amount: 1200, type: 'despesa_variavel', category_id: 'c4', status: 'projected', is_unexpected: false, description: 'Manutenção Carro (Previsão)' },
+      { id: 't3', created_by: 'Felipe', date: dateStr(10), amount: 880, type: 'despesa_variavel', category_id: 'c17', status: 'realized', is_unexpected: false, description: 'Compras do mês' },
+      { id: 't4', created_by: 'Camila', date: dateStr(12), amount: 2500, type: 'despesa_fixa', category_id: 'c7', status: 'realized', is_unexpected: false, description: 'Aluguel' },
+      { id: 't5', created_by: 'Felipe', date: dateStr(15), amount: 320, type: 'despesa_fixa', category_id: 'c9', status: 'realized', is_unexpected: true, description: 'Conta de luz alta' },
+      { id: 't6', created_by: 'Camila', date: dateStr(20), amount: 500, type: 'investimento', category_id: 'c29', status: 'realized', is_unexpected: false, description: 'Aporte mensal' },
+      { id: 't7', created_by: 'Felipe', date: dateStr(20), amount: 300, type: 'investimento', category_id: 'c30', status: 'realized', is_unexpected: false, description: 'Aporte FIIs' },
+      { id: 't8', created_by: 'Camila', date: dateStr(20), amount: 100, type: 'investimento', category_id: 'c32', status: 'realized', is_unexpected: false, description: 'Compra USD' },
+      { id: 't9', created_by: 'Felipe', date: dateStr(25), amount: 1200, type: 'despesa_variavel', category_id: 'c6', status: 'projected', is_unexpected: false, description: 'Manutenção Carro (Previsão)' },
     ],
     goalContributions: [
       { goal_id: 'g1', contribution_type: 'aporte', amount: 80000, date: dateStr(1), description: 'Aporte inicial' },
@@ -93,12 +122,12 @@ const generateMockData = () => {
       { id: 'p5', month: '2026-09-01', total_assets: 142000, total_liabilities: 30000, net_patrimony: 112000 },
     ],
     cashFlowHistory: [
-      { month: '2026-04', income: 13000, expenses: 3200, contributions: 700 },
-      { month: '2026-05', income: 14000, expenses: 3500, contributions: 800 },
-      { month: '2026-06', income: 14500, expenses: 3800, contributions: 850 },
-      { month: '2026-07', income: 14000, expenses: 3600, contributions: 900 },
-      { month: '2026-08', income: 14200, expenses: 3700, contributions: 920 },
-      { month: '2026-09', income: 14000, expenses: 3700, contributions: 900 },
+      { month: '2026-04-01', income: 13000, expenses: 3200, contributions: 700 },
+      { month: '2026-05-01', income: 14000, expenses: 3500, contributions: 800 },
+      { month: '2026-06-01', income: 14500, expenses: 3800, contributions: 850 },
+      { month: '2026-07-01', income: 14000, expenses: 3600, contributions: 900 },
+      { month: '2026-08-01', income: 14200, expenses: 3700, contributions: 920 },
+      { month: '2026-09-01', income: 14000, expenses: 3700, contributions: 900 },
     ],
   };
 };
@@ -135,8 +164,99 @@ function ProgressBar({ value, color = 'bg-[#0B1F33]' }: any) {
   );
 }
 
+// ===== TELA DE LOGIN =====
+function LoginScreen({ onLogin }: { onLogin: (user: string) => void }) {
+  const [selectedUser, setSelectedUser] = useState<'Felipe' | 'Camila'>('Felipe');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = () => {
+    if (password === '1234' || password === '') {
+      localStorage.setItem('currentUser', selectedUser);
+      onLogin(selectedUser);
+    } else {
+      alert('Senha incorreta! Use 1234 ou deixe vazio.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center p-4 font-body">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-[#0B1F33] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Wallet className="w-8 h-8 text-[#C5A45A]" />
+          </div>
+          <h1 className="font-display text-3xl font-bold text-[#0B1F33] mb-2">Finanças do Casal</h1>
+          <p className="text-[#707780]">Gestão Patrimonial</p>
+        </div>
+
+        <Card className="p-6">
+          <h2 className="font-display text-xl font-bold text-[#0B1F33] mb-6">Quem está acessando?</h2>
+          
+          <div className="space-y-4 mb-6">
+            <button
+              onClick={() => setSelectedUser('Felipe')}
+              className={`w-full p-4 rounded-lg border-2 transition-all ${
+                selectedUser === 'Felipe'
+                  ? 'border-[#0B1F33] bg-[#0B1F33]/5'
+                  : 'border-[#0B1F33]/20 hover:border-[#0B1F33]/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-[#0B1F33] rounded-full flex items-center justify-center text-white font-bold">F</div>
+                <div className="text-left">
+                  <p className="font-bold text-[#0B1F33]">Felipe</p>
+                  <p className="text-xs text-[#707780]">Acessar como Felipe</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setSelectedUser('Camila')}
+              className={`w-full p-4 rounded-lg border-2 transition-all ${
+                selectedUser === 'Camila'
+                  ? 'border-[#A9823A] bg-[#A9823A]/5'
+                  : 'border-[#0B1F33]/20 hover:border-[#0B1F33]/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-[#A9823A] rounded-full flex items-center justify-center text-white font-bold">C</div>
+                <div className="text-left">
+                  <p className="font-bold text-[#0B1F33]">Camila</p>
+                  <p className="text-xs text-[#707780]">Acessar como Camila</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="space-y-2 mb-6">
+            <label className="text-sm font-medium text-[#0B1F33]">Senha (opcional)</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="1234 ou deixe vazio"
+              className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-[#F7F5F0]"
+            />
+          </div>
+
+          <button
+            onClick={handleLogin}
+            className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-3 rounded-lg transition-colors border border-[#A9823A]/30"
+          >
+            Entrar
+          </button>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 // ===== COMPONENTE PRINCIPAL =====
 export default function FinanceDashboard() {
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
   const [categories, setCategories] = useState<any[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
@@ -148,7 +268,7 @@ export default function FinanceDashboard() {
   const [cashFlowHistory, setCashFlowHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'goals' | 'investments' | 'patrimony' | 'health'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'flow' | 'health' | 'goals' | 'investments' | 'patrimony'>('dashboard');
   const [patrimonyView, setPatrimonyView] = useState<'family' | 'Felipe' | 'Camila'>('family');
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -170,7 +290,28 @@ export default function FinanceDashboard() {
     is_unexpected: false,
   });
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      setCurrentUser(savedUser);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser]);
+
+  const handleLogin = (user: string) => {
+    setCurrentUser(user);
+    setFormData((prev: any) => ({ ...prev, created_by: user }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('currentUser');
+    setCurrentUser(null);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -242,7 +383,6 @@ export default function FinanceDashboard() {
     [monthlyTransactions, viewFilter, userFilter]
   );
 
-  // ===== MÉTRICAS DO DASHBOARD =====
   const metrics = useMemo(() => {
     const realizedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
     const projectedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'projected').reduce((sum, t) => sum + Number(t.amount), 0);
@@ -260,7 +400,17 @@ export default function FinanceDashboard() {
     return { realizedIncome, projectedIncome, realizedExpenses, unexpectedExpenses, totalAportes, saldo, saldoDisponivel, investmentTotals, investments };
   }, [monthlyTransactions, categories]);
 
-  // ===== METAS COM PROGRESSO =====
+  const flowMetrics = useMemo(() => {
+    const currentMonth = cashFlowHistory[cashFlowHistory.length - 1];
+    const previousMonth = cashFlowHistory[cashFlowHistory.length - 2];
+    if (!currentMonth) return { income: 0, expenses: 0, contributions: 0, incomeChange: 0, expensesChange: 0, contributionsChange: 0, balance: 0, history: [] };
+    const balance = currentMonth.income - currentMonth.expenses - currentMonth.contributions;
+    const incomeChange = previousMonth ? ((currentMonth.income - previousMonth.income) / previousMonth.income) * 100 : 0;
+    const expensesChange = previousMonth ? ((currentMonth.expenses - previousMonth.expenses) / previousMonth.expenses) * 100 : 0;
+    const contributionsChange = previousMonth ? ((currentMonth.contributions - previousMonth.contributions) / previousMonth.contributions) * 100 : 0;
+    return { income: currentMonth.income, expenses: currentMonth.expenses, contributions: currentMonth.contributions, balance, incomeChange, expensesChange, contributionsChange, history: cashFlowHistory };
+  }, [cashFlowHistory]);
+
   const goalsWithProgress = useMemo(() => {
     return goals.map((goal) => {
       const contributions = goalContributions.filter((c) => c.goal_id === goal.id);
@@ -273,7 +423,6 @@ export default function FinanceDashboard() {
     });
   }, [goals, goalContributions]);
 
-  // ===== PATRIMÔNIO =====
   const patrimonyMetrics = useMemo(() => {
     const filteredAssets = patrimonyView === 'family' ? assets : assets.filter((a) => a.owner === patrimonyView || a.owner === 'família');
     const filteredLiabilities = patrimonyView === 'family' ? liabilities : liabilities.filter((l) => l.owner === patrimonyView || l.owner === 'família');
@@ -286,7 +435,6 @@ export default function FinanceDashboard() {
     return { totalAssets, totalLiabilities, netPatrimony, patrimonyChange };
   }, [assets, liabilities, patrimonyHistory, patrimonyView]);
 
-  // ===== SAÚDE FINANCEIRA =====
   const healthMetrics = useMemo(() => {
     const expenseRatio = metrics.realizedIncome > 0 ? (metrics.realizedExpenses / metrics.realizedIncome) * 100 : 0;
     const investmentRatio = metrics.realizedIncome > 0 ? (metrics.totalAportes / metrics.realizedIncome) * 100 : 0;
@@ -326,17 +474,6 @@ export default function FinanceDashboard() {
     return { expenseRatio, investmentRatio, hasEmergencyFund, debtRatio, goalsProgress, healthStatus, healthLabel, healthScore, issues, strengths };
   }, [metrics, assets, patrimonyMetrics, goalsWithProgress]);
 
-  // ===== FLUXO FINANCEIRO =====
-  const cashFlowMetrics = useMemo(() => {
-    const currentMonth = cashFlowHistory[cashFlowHistory.length - 1];
-    const previousMonth = cashFlowHistory[cashFlowHistory.length - 2];
-    if (!currentMonth) return { income: 0, expenses: 0, contributions: 0, incomeChange: 0, expensesChange: 0, history: [] };
-    const incomeChange = previousMonth ? ((currentMonth.income - previousMonth.income) / previousMonth.income) * 100 : 0;
-    const expensesChange = previousMonth ? ((currentMonth.expenses - previousMonth.expenses) / previousMonth.expenses) * 100 : 0;
-    return { income: currentMonth.income, expenses: currentMonth.expenses, contributions: currentMonth.contributions, incomeChange, expensesChange, history: cashFlowHistory };
-  }, [cashFlowHistory]);
-
-  // ===== TETOS DE GASTOS =====
   const budgetStatus = useMemo(() =>
     budgets.map((budget) => {
       const category = categories.find((c) => c.id === budget.category_id);
@@ -344,18 +481,54 @@ export default function FinanceDashboard() {
       const limit = Number(budget.monthly_limit);
       const percentage = limit > 0 ? (spent / limit) * 100 : 0;
       let alertLevel = 'normal';
-      let alertColor = 'bg-[#0B1F33]';
       let alertBadge = null;
-      if (percentage >= 100) { alertLevel = 'ultrapassado'; alertColor = 'bg-[#A94B4B]'; alertBadge = 'Ultrapassado'; }
-      else if (percentage >= 85) { alertLevel = 'proximo'; alertColor = 'bg-[#B8860B]'; alertBadge = 'Limite Próximo'; }
-      else if (percentage >= 70) { alertLevel = 'atencao'; alertColor = 'bg-[#C5A45A]'; alertBadge = 'Atenção'; }
+      if (percentage >= 100) { alertLevel = 'ultrapassado'; alertBadge = 'Ultrapassado'; }
+      else if (percentage >= 85) { alertLevel = 'proximo'; alertBadge = 'Limite Próximo'; }
+      else if (percentage >= 70) { alertLevel = 'atencao'; alertBadge = 'Atenção'; }
       const remaining = Math.max(0, limit - spent);
-      return { category, spent, limit, percentage, alertLevel, alertColor, alertBadge, remaining };
+      return { category, spent, limit, percentage, alertLevel, alertBadge, remaining };
     }),
     [budgets, categories, monthlyTransactions]
   );
 
-  // ===== HANDLERS =====
+  useEffect(() => {
+    if (budgetStatus.length > 0) {
+      const alerts = budgetStatus
+        .filter((b) => b.alertLevel === 'ultrapassado' || b.alertLevel === 'proximo')
+        .map((b) => ({
+          id: b.category?.id,
+          message: `${b.category?.name}: ${b.alertBadge} (${b.percentage.toFixed(0)}%)`,
+          level: b.alertLevel,
+        }));
+      setNotifications(alerts);
+    }
+  }, [budgetStatus]);
+
+  const handleExportTransactionsExcel = () => {
+    const data = formatTransactionsForExport(filteredTransactions, categories);
+    exportToExcel(data, `transacoes_${selectedMonth}`, 'Transações');
+  };
+  const handleExportTransactionsPDF = () => {
+    const data = formatTransactionsForExport(filteredTransactions, categories);
+    exportToPDF(data, `transacoes_${selectedMonth}`, 'Relatório de Transações');
+  };
+  const handleExportGoalsExcel = () => {
+    const data = formatGoalsForExport(goalsWithProgress);
+    exportToExcel(data, `metas_${selectedMonth}`, 'Metas');
+  };
+  const handleExportGoalsPDF = () => {
+    const data = formatGoalsForExport(goalsWithProgress);
+    exportToPDF(data, `metas_${selectedMonth}`, 'Relatório de Metas');
+  };
+  const handleExportPatrimonyExcel = () => {
+    const data = formatPatrimonyForExport(assets, liabilities);
+    exportToExcel(data, `patrimonio_${selectedMonth}`, 'Patrimônio');
+  };
+  const handleExportPatrimonyPDF = () => {
+    const data = formatPatrimonyForExport(assets, liabilities);
+    exportToPDF(data, `patrimonio_${selectedMonth}`, 'Relatório Patrimonial');
+  };
+
   const handleAddTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
@@ -363,13 +536,13 @@ export default function FinanceDashboard() {
       const newTransaction = { id: `t${Date.now()}`, ...formData, amount: parseFloat(formData.amount) };
       setTransactions((prev) => [...prev, newTransaction]);
       setIsDrawerOpen(false);
-      setFormData({ created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '', date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false });
+      setFormData({ created_by: currentUser || 'Felipe', type: 'despesa_variavel', category_id: '', amount: '', date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false });
       return;
     }
     try {
       await supabase.from('transactions').insert({ created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount), type: formData.type, category_id: formData.category_id, status: formData.status, is_unexpected: formData.is_unexpected, description: formData.description });
       setIsDrawerOpen(false);
-      setFormData({ created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '', date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false });
+      setFormData({ created_by: currentUser || 'Felipe', type: 'despesa_variavel', category_id: '', amount: '', date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false });
       await loadData();
     } catch (error: any) { alert(`Erro: ${error?.message}`); }
   };
@@ -380,6 +553,10 @@ export default function FinanceDashboard() {
   };
 
   const availableCategories = categories.filter((c) => c.type === formData.type);
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   if (loading) {
     return (
@@ -394,7 +571,19 @@ export default function FinanceDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] pb-24 font-body">
-      {/* HEADER PREMIUM */}
+      {notifications.length > 0 && (
+        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-xs">
+          {notifications.map((notif) => (
+            <div key={notif.id} className={`p-3 rounded-lg shadow-lg border ${notif.level === 'ultrapassado' ? 'bg-[#A94B4B] text-white border-[#A94B4B]' : 'bg-[#B8860B] text-white border-[#B8860B]'}`}>
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-medium">{notif.message}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <header className="header-premium sticky top-0 z-40 px-6 py-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-4">
@@ -404,18 +593,70 @@ export default function FinanceDashboard() {
               </div>
               <div>
                 <h1 className="font-display text-xl font-bold text-[#0B1F33]">Finanças do Casal</h1>
-                <p className="text-xs text-[#707780]">Gestão Patrimonial</p>
+                <p className="text-xs text-[#707780]">Olá, {currentUser}! 👋</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-[#F7F5F0] px-3 py-2 rounded-lg border border-[#0B1F33]/10">
-              <Calendar className="w-4 h-4 text-[#707780]" />
-              <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="text-sm bg-transparent outline-none text-[#0B1F33] font-medium" />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-[#F7F5F0] px-3 py-2 rounded-lg border border-[#0B1F33]/10">
+                <Calendar className="w-4 h-4 text-[#707780]" />
+                <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="text-sm bg-transparent outline-none text-[#0B1F33] font-medium" />
+              </div>
+              
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="p-2 bg-[#F7F5F0] rounded-lg border border-[#0B1F33]/10 hover:bg-[#0B1F33]/5 transition-colors"
+                  title="Exportar"
+                >
+                  <Download className="w-4 h-4 text-[#0B1F33]" />
+                </button>
+                
+                {showExportMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)}></div>
+                    <div className="absolute right-0 top-12 w-64 bg-white rounded-lg shadow-2xl border border-[#0B1F33]/10 p-2 z-50">
+                      <p className="text-xs font-semibold text-[#707780] uppercase px-2 py-1">Transações</p>
+                      <button onClick={() => { handleExportTransactionsExcel(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileSpreadsheet className="w-4 h-4 text-[#2F6B57]" /> Exportar Excel
+                      </button>
+                      <button onClick={() => { handleExportTransactionsPDF(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileText className="w-4 h-4 text-[#A94B4B]" /> Exportar PDF
+                      </button>
+                      
+                      <p className="text-xs font-semibold text-[#707780] uppercase px-2 py-1 mt-2">Metas</p>
+                      <button onClick={() => { handleExportGoalsExcel(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileSpreadsheet className="w-4 h-4 text-[#2F6B57]" /> Exportar Excel
+                      </button>
+                      <button onClick={() => { handleExportGoalsPDF(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileText className="w-4 h-4 text-[#A94B4B]" /> Exportar PDF
+                      </button>
+                      
+                      <p className="text-xs font-semibold text-[#707780] uppercase px-2 py-1 mt-2">Patrimônio</p>
+                      <button onClick={() => { handleExportPatrimonyExcel(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileSpreadsheet className="w-4 h-4 text-[#2F6B57]" /> Exportar Excel
+                      </button>
+                      <button onClick={() => { handleExportPatrimonyPDF(); setShowExportMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#0B1F33] hover:bg-[#F7F5F0] rounded">
+                        <FileText className="w-4 h-4 text-[#A94B4B]" /> Exportar PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="p-2 bg-[#F7F5F0] rounded-lg border border-[#0B1F33]/10 hover:bg-[#A94B4B]/10 transition-colors"
+                title="Sair"
+              >
+                <LogOut className="w-4 h-4 text-[#A94B4B]" />
+              </button>
             </div>
           </div>
           
           <div className="flex gap-2 overflow-x-auto pb-1">
             {[
               { id: 'dashboard', label: 'Início', icon: Wallet },
+              { id: 'flow', label: 'Fluxo', icon: BarChart3 },
               { id: 'health', label: 'Saúde', icon: Activity },
               { id: 'goals', label: 'Metas', icon: Target },
               { id: 'investments', label: 'Investimentos', icon: Briefcase },
@@ -431,7 +672,6 @@ export default function FinanceDashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto p-6 space-y-6 animate-fade-in">
-        {/* ===== ABA DASHBOARD ===== */}
         {activeTab === 'dashboard' && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -492,6 +732,7 @@ export default function FinanceDashboard() {
               </Card>
             </div>
 
+            {/* TETOS DE GASTOS - NOVO VISUAL AZUL MARINHO */}
             <Card className="p-5">
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="w-5 h-5 text-[#B8860B]" />
@@ -499,21 +740,38 @@ export default function FinanceDashboard() {
               </div>
               <div className="space-y-4">
                 {budgetStatus.map((budget, idx) => (
-                  <div key={idx} className={`p-4 rounded-lg border ${budget.alertLevel === 'ultrapassado' ? 'border-[#A94B4B]/30 bg-[#A94B4B]/5' : budget.alertLevel === 'proximo' ? 'border-[#B8860B]/30 bg-[#B8860B]/5' : budget.alertLevel === 'atencao' ? 'border-[#C5A45A]/30 bg-[#C5A45A]/5' : 'border-[#0B1F33]/10'}`}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium text-[#0B1F33]">{budget.category?.name}</span>
-                      <div className="flex items-center gap-2">
-                        {budget.alertBadge && <Badge variant={budget.alertLevel === 'ultrapassado' ? 'danger' : budget.alertLevel === 'proximo' ? 'warning' : 'gold'}>{budget.alertBadge}</Badge>}
-                        <span className="text-sm text-[#707780]">{formatBRL(budget.spent)} / {formatBRL(budget.limit)}</span>
+                  <div key={idx} className="p-4 rounded-lg bg-[#0B1F33] text-white shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-medium text-white text-lg">{budget.category?.name}</span>
+                      <div className="flex items-center gap-3">
+                        {budget.alertBadge && (
+                          <span className={`badge-premium ${
+                            budget.alertLevel === 'ultrapassado' ? 'bg-[#A94B4B] text-white' : 
+                            budget.alertLevel === 'proximo' ? 'bg-[#B8860B] text-white' : 
+                            'bg-[#C5A45A] text-white'
+                          }`}>
+                            {budget.alertBadge}
+                          </span>
+                        )}
+                        <span className="text-sm text-white/80 font-medium">
+                          {formatBRL(budget.spent)} / {formatBRL(budget.limit)}
+                        </span>
                       </div>
                     </div>
-                    <ProgressBar value={budget.percentage} color={budget.alertColor} />
+                    
+                    <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden mb-2">
+                      <div 
+                        className="h-full bg-white rounded-full transition-all" 
+                        style={{ width: `${Math.min(budget.percentage, 100)}%` }} 
+                      />
+                    </div>
+                    
                     <div className="flex justify-between mt-2">
-                      <p className="text-xs text-[#707780]">{budget.percentage.toFixed(0)}% utilizado</p>
+                      <p className="text-xs text-white/70">{budget.percentage.toFixed(0)}% utilizado</p>
                       {budget.alertLevel !== 'ultrapassado' ? (
-                        <p className="text-xs text-[#707780]">Restam {formatBRL(budget.remaining)}</p>
+                        <p className="text-xs text-white/70">Restam {formatBRL(budget.remaining)}</p>
                       ) : (
-                        <p className="text-xs text-[#A94B4B] font-medium">Ultrapassou {formatBRL(budget.spent - budget.limit)}</p>
+                        <p className="text-xs text-[#ffaaaa] font-medium">Ultrapassou {formatBRL(budget.spent - budget.limit)}</p>
                       )}
                     </div>
                   </div>
@@ -574,7 +832,145 @@ export default function FinanceDashboard() {
           </>
         )}
 
-        {/* ===== ABA SAÚDE FINANCEIRA ===== */}
+        {activeTab === 'flow' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <BarChart3 className="w-6 h-6 text-[#A9823A]" />
+              <h2 className="font-display text-2xl font-bold text-[#0B1F33]">Fluxo Financeiro</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-[#2F6B57]" />
+                    <p className="text-xs text-[#707780] font-medium uppercase">Receitas</p>
+                  </div>
+                  {flowMetrics.incomeChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}
+                </div>
+                <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.income)}</p>
+                <p className={`text-xs mt-1 ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                  {flowMetrics.incomeChange >= 0 ? '+' : ''}{flowMetrics.incomeChange.toFixed(1)}% vs mês anterior
+                </p>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-[#A94B4B]" />
+                    <p className="text-xs text-[#707780] font-medium uppercase">Despesas</p>
+                  </div>
+                  {flowMetrics.expensesChange <= 0 ? <ArrowDownRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowUpRight className="w-4 h-4 text-[#A94B4B]" />}
+                </div>
+                <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.expenses)}</p>
+                <p className={`text-xs mt-1 ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                  {flowMetrics.expensesChange >= 0 ? '+' : ''}{flowMetrics.expensesChange.toFixed(1)}% vs mês anterior
+                </p>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-[#A9823A]" />
+                    <p className="text-xs text-[#707780] font-medium uppercase">Aportes</p>
+                  </div>
+                  {flowMetrics.contributionsChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}
+                </div>
+                <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.contributions)}</p>
+                <p className={`text-xs mt-1 ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                  {flowMetrics.contributionsChange >= 0 ? '+' : ''}{flowMetrics.contributionsChange.toFixed(1)}% vs mês anterior
+                </p>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <PiggyBank className="w-5 h-5 text-[#0B1F33]" />
+                    <p className="text-xs text-[#707780] font-medium uppercase">Saldo</p>
+                  </div>
+                </div>
+                <p className={`text-2xl font-bold font-display ${flowMetrics.balance >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                  {formatBRL(flowMetrics.balance)}
+                </p>
+                <p className="text-xs text-[#707780] mt-1">Receitas - Despesas - Aportes</p>
+              </Card>
+            </div>
+
+            <Card className="p-6">
+              <h3 className="font-display font-bold text-[#0B1F33] mb-6">Evolução Mensal (Últimos 6 meses)</h3>
+              <div className="space-y-6">
+                {flowMetrics.history.map((item: any, idx: number) => {
+                  const balance = item.income - item.expenses - item.contributions;
+                  const maxIncome = Math.max(...flowMetrics.history.map((h: any) => h.income));
+                  const maxExpenses = Math.max(...flowMetrics.history.map((h: any) => h.expenses));
+                  
+                  return (
+                    <div key={idx} className="space-y-3 p-4 bg-[#F7F5F0] rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-[#0B1F33] font-display">{formatMonthYear(item.month)}</span>
+                        <span className={`font-bold font-display ${balance >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                          {formatBRL(balance)}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#707780]">Receitas</span>
+                          <span className="font-medium text-[#2F6B57]">{formatBRL(item.income)}</span>
+                        </div>
+                        <ProgressBar value={(item.income / maxIncome) * 100} color="bg-[#2F6B57]" />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#707780]">Despesas</span>
+                          <span className="font-medium text-[#A94B4B]">{formatBRL(item.expenses)}</span>
+                        </div>
+                        <ProgressBar value={(item.expenses / maxExpenses) * 100} color="bg-[#A94B4B]" />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#707780]">Aportes</span>
+                          <span className="font-medium text-[#A9823A]">{formatBRL(item.contributions)}</span>
+                        </div>
+                        <ProgressBar value={(item.contributions / maxIncome) * 100} color="bg-[#A9823A]" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="font-display font-bold text-[#0B1F33] mb-4">Análise de Tendência</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-[#2F6B57]/5 rounded-lg border border-[#2F6B57]/20">
+                  <p className="text-sm text-[#707780] mb-1">Receitas</p>
+                  <p className={`text-lg font-bold font-display ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                    {flowMetrics.incomeChange >= 0 ? '↗' : '↘'} {flowMetrics.incomeChange >= 0 ? 'Crescendo' : 'Diminuindo'}
+                  </p>
+                  <p className="text-xs text-[#707780] mt-1">{flowMetrics.incomeChange >= 0 ? 'Receitas em alta!' : 'Atenção: receitas em queda'}</p>
+                </div>
+                <div className="p-4 bg-[#A94B4B]/5 rounded-lg border border-[#A94B4B]/20">
+                  <p className="text-sm text-[#707780] mb-1">Despesas</p>
+                  <p className={`text-lg font-bold font-display ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                    {flowMetrics.expensesChange <= 0 ? '↘' : '↗'} {flowMetrics.expensesChange <= 0 ? 'Controladas' : 'Aumentando'}
+                  </p>
+                  <p className="text-xs text-[#707780] mt-1">{flowMetrics.expensesChange <= 0 ? 'Ótimo controle!' : 'Revisar gastos'}</p>
+                </div>
+                <div className="p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
+                  <p className="text-sm text-[#707780] mb-1">Aportes</p>
+                  <p className={`text-lg font-bold font-display ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                    {flowMetrics.contributionsChange >= 0 ? '↗' : '↘'} {flowMetrics.contributionsChange >= 0 ? 'Aumentando' : 'Diminuindo'}
+                  </p>
+                  <p className="text-xs text-[#707780] mt-1">{flowMetrics.contributionsChange >= 0 ? 'Investimentos crescendo!' : 'Aumentar aportes'}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'health' && (
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -586,7 +982,7 @@ export default function FinanceDashboard() {
                 <div>
                   <p className="text-sm text-[#707780] font-medium">Classificação</p>
                   <h3 className={`text-3xl font-bold font-display mt-1 ${healthMetrics.healthStatus === 'green' ? 'text-[#2F6B57]' : healthMetrics.healthStatus === 'yellow' ? 'text-[#B8860B]' : 'text-[#A94B4B]'}`}>
-                    {healthMetrics.healthStatus === 'green' ? '' : healthMetrics.healthStatus === 'yellow' ? '🟡' : '🔴'} {healthMetrics.healthLabel}
+                    {healthMetrics.healthStatus === 'green' ? '🟢' : healthMetrics.healthStatus === 'yellow' ? '🟡' : '🔴'} {healthMetrics.healthLabel}
                   </h3>
                 </div>
                 <div className="text-right">
@@ -657,7 +1053,6 @@ export default function FinanceDashboard() {
           </div>
         )}
 
-        {/* ===== ABA METAS ===== */}
         {activeTab === 'goals' && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-6">
@@ -696,7 +1091,6 @@ export default function FinanceDashboard() {
           </div>
         )}
 
-        {/* ===== ABA INVESTIMENTOS ===== */}
         {activeTab === 'investments' && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-6">
@@ -735,7 +1129,6 @@ export default function FinanceDashboard() {
           </div>
         )}
 
-        {/* ===== ABA PATRIMÔNIO ===== */}
         {activeTab === 'patrimony' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -828,12 +1221,10 @@ export default function FinanceDashboard() {
         )}
       </main>
 
-      {/* FAB PREMIUM */}
       <button onClick={() => setIsDrawerOpen(true)} className="fixed bottom-6 right-6 w-14 h-14 bg-[#0B1F33] hover:bg-[#172a3d] text-[#C5A45A] rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-40 border border-[#A9823A]/30">
         <Plus className="w-8 h-8" />
       </button>
 
-      {/* DRAWER PREMIUM */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-[#0B1F33]/50 backdrop-blur-sm" onClick={() => setIsDrawerOpen(false)}>
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
