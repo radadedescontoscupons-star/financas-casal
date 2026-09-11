@@ -377,7 +377,7 @@ export default function FinanceDashboard() {
     }
     setLoading(false);
   };
-  
+
   const monthlyTransactions = useMemo(() =>
     transactions.filter((t) => t.date && t.date.startsWith(selectedMonth)),
     [transactions, selectedMonth]
@@ -582,20 +582,8 @@ export default function FinanceDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] pb-24 font-body">
-      {notifications.length > 0 && (
-        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-xs">
-          {notifications.map((notif) => (
-            <div key={notif.id} className={`p-3 rounded-lg shadow-lg border ${notif.level === 'ultrapassado' ? 'bg-[#A94B4B] text-white border-[#A94B4B]' : 'bg-[#B8860B] text-white border-[#B8860B]'}`}>
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm font-medium">{notif.message}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <header className="header-premium sticky top-0 z-40 px-6 py-4">
+      
+<header className="sticky top-0 z-50 bg-[#F7F5F0] border-b border-[#0B1F33]/10 px-6 py-4 shadow-sm">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
