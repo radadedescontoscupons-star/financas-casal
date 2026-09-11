@@ -313,60 +313,71 @@ export default function FinanceDashboard() {
     setCurrentUser(null);
   };
 
-  const loadData = async () => {
+    const loadData = async () => {
     setLoading(true);
     try {
       const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
       
       if (catsError) {
-        const mockData = generateMockData();
-        setCategories(mockData.categories);
-        setBudgets(mockData.budgets);
-        setGoals(mockData.goals);
-        setTransactions(mockData.transactions);
-        setGoalContributions(mockData.goalContributions);
-        setAssets(mockData.assets);
-        setLiabilities(mockData.liabilities);
-        setPatrimonyHistory(mockData.patrimonyHistory);
-        setCashFlowHistory(mockData.cashFlowHistory);
+        console.warn('Erro ao conectar com Supabase, iniciando vazio:', catsError);
+        // Se der erro de conexão, inicia tudo vazio
+        setCategories([]);
+        setBudgets([]);
+        setGoals([]);
+        setTransactions([]);
+        setGoalContributions([]);
+        setAssets([]);
+        setLiabilities([]);
+        setPatrimonyHistory([]);
+        setCashFlowHistory([]);
         setUseMockData(true);
       } else {
+        // Se conectar, puxa os dados. Se não tiver nada no banco, vem vazio []
         setCategories(catsData || []);
+        
         const { data: budgetData } = await supabase.from('category_budgets').select('*');
         setBudgets(budgetData || []);
+        
         const { data: goalsData } = await supabase.from('goals').select('*');
         setGoals(goalsData || []);
+        
         const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false });
         setTransactions(transData || []);
+        
         const { data: contributionsData } = await supabase.from('goal_contributions').select('*');
         setGoalContributions(contributionsData || []);
+        
         const { data: assetsData } = await supabase.from('assets').select('*');
         setAssets(assetsData || []);
+        
         const { data: liabilitiesData } = await supabase.from('liabilities').select('*');
         setLiabilities(liabilitiesData || []);
+        
         const { data: historyData } = await supabase.from('patrimony_history').select('*').order('month', { ascending: true });
         setPatrimonyHistory(historyData || []);
+        
         const { data: cashFlowData } = await supabase.from('cash_flow_history').select('*').order('month', { ascending: true });
-        const mockData = generateMockData();
-        setCashFlowHistory(cashFlowData || mockData.cashFlowHistory);
+        setCashFlowHistory(cashFlowData || []);
+        
         setUseMockData(false);
       }
     } catch (error) {
-      const mockData = generateMockData();
-      setCategories(mockData.categories);
-      setBudgets(mockData.budgets);
-      setGoals(mockData.goals);
-      setTransactions(mockData.transactions);
-      setGoalContributions(mockData.goalContributions);
-      setAssets(mockData.assets);
-      setLiabilities(mockData.liabilities);
-      setPatrimonyHistory(mockData.patrimonyHistory);
-      setCashFlowHistory(mockData.cashFlowHistory);
+      console.error('Erro geral ao carregar:', error);
+      // Em caso de erro inesperado, também inicia vazio
+      setCategories([]);
+      setBudgets([]);
+      setGoals([]);
+      setTransactions([]);
+      setGoalContributions([]);
+      setAssets([]);
+      setLiabilities([]);
+      setPatrimonyHistory([]);
+      setCashFlowHistory([]);
       setUseMockData(true);
     }
     setLoading(false);
   };
-
+  
   const monthlyTransactions = useMemo(() =>
     transactions.filter((t) => t.date && t.date.startsWith(selectedMonth)),
     [transactions, selectedMonth]
