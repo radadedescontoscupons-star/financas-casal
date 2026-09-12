@@ -166,12 +166,20 @@ export default function FinanceDashboard() {
     setLoading(true);
     try {
       const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
+      // ADICIONE ESTA LINHA ABAIXO PARA VER NO CONSOLE DO NAVEGADOR:
+      console.log('CATEGORIAS DO BANCO:', catsData, 'ERRO:', catsError);
       if (catsError) {
         setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
         setGoalContributions([]); setAssets([]); setLiabilities([]);
         setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
       } else {
-        setCategories(catsData || []);
+             // Corrige o nome da coluna se o banco estiver usando 'transaction_type'
+      const correctedCats = (catsData || []).map((cat: any) => ({
+        ...cat,
+        type: cat.transaction_type || cat.type // Garante que tenha a propriedade 'type'
+      }));
+      
+      setCategories(correctedCats);
         const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
         const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
         const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
