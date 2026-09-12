@@ -497,6 +497,8 @@ export default function FinanceDashboard() {
       console.error('Erro ao gerar recorrências:', error);
     }
   };
+  
+  
 
   // ===== FUNÇÃO PARA BUSCAR NOTÍCIAS (ADICIONE AQUI) =====
   const fetchNews = async (source: string = 'all') => {
@@ -980,7 +982,7 @@ export default function FinanceDashboard() {
             
             <div className="p-6">
               {activeTab === 'goals' ? (
-                <form onSubmit={handleAddGoal} className="space-y-5">
+                <form onSubmit={editingTransaction ? handleUpdateTransaction : handleAddTransaction} className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-[#0B1F33]">Nome do Sonho / Meta</label>
                     <input type="text" required value={formData.goal_title} onChange={(e) => setFormData({ ...formData, goal_title: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A]" placeholder="Ex: Nossa Casa, Viagem Europa" />
@@ -1035,7 +1037,7 @@ export default function FinanceDashboard() {
                     <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
                     <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]" placeholder="Ex: Compras do mês" />
                   </div>
-                  {/* Campos de Recorrência */}
+                                   {/* Campos de Recorrência */}
                   <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
