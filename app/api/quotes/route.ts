@@ -127,14 +127,20 @@ export async function GET() {
     // Ordenar na ordem definida
     const orderedResults = TICKERS.map(t => results.find(r => r.ticker === t.id)).filter(Boolean) as QuoteResult[];
     
-    return NextResponse.json(orderedResults, {
+        return NextResponse.json(orderedResults, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
     
-  } catch (error) {
+    } catch (error) {
     console.error('Erro geral ao buscar cotações:', error);
-    return NextResponse.json(MOCK_QUOTES);
+    return NextResponse.json(MOCK_QUOTES, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   }
 }
