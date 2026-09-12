@@ -141,7 +141,7 @@ export default function FinanceDashboard() {
   // ===== ESTADOS PARA NOTÍCIAS (ADICIONE AQUI) =====
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia'>('all');
+    const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia' | 'valor' | 'moneytimes'>('all');
   const [formData, setFormData] = useState<any>({
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
@@ -751,12 +751,14 @@ export default function FinanceDashboard() {
 
             {/* Filtros por Fonte */}
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {[
-                { id: 'all', label: 'Todas' },
-                { id: 'infomoney', label: 'InfoMoney' },
-                { id: 'investing', label: 'Investing.com' },
-                { id: 'investopedia', label: 'Investopedia' },
-              ].map((filter) => (
+                         {[
+              { id: 'all', label: 'Todas' },
+              { id: 'infomoney', label: 'InfoMoney' },
+              { id: 'investing', label: 'Investing.com' },
+              { id: 'investopedia', label: 'Investopedia' },
+              { id: 'valor', label: 'Valor Econômico' },
+              { id: 'moneytimes', label: 'Money Times' },
+            ].map((filter) => (
                 <button
                   key={filter.id}
                   onClick={() => setNewsSource(filter.id as any)}
