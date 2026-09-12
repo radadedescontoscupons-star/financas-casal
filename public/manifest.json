@@ -1,7 +1,7 @@
 {
   "name": "Finanças do Casal",
   "short_name": "Finanças",
-  "description": "Dashboard financeiro do casal",
+  "description": "Gestão Patrimonial e Financeira",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F5F0",
