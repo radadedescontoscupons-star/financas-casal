@@ -133,11 +133,14 @@ export default function FinanceDashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [viewFilter, setViewFilter] = useState<'all' | 'realized' | 'projected'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'Felipe' | 'Camila'>('all');
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
   });
+
+  // 👇 COLE AQUI AS 2 LINHAS:
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [recurringTemplates, setRecurringTemplates] = useState<any[]>([]);
   // ===== ESTADOS PARA NOTÍCIAS (ADICIONE AQUI) =====
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
@@ -146,6 +149,7 @@ export default function FinanceDashboard() {
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
     goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
+    is_recurring: false, recurring_day: '', recurring_end_date: '',
   });
 
   useEffect(() => {
@@ -195,8 +199,8 @@ export default function FinanceDashboard() {
       setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
     }
     setLoading(false);
+    setTimeout(() => generateRecurringForMonth(), 1000);
   };
-
   const monthlyTransactions = useMemo(() => transactions.filter((t) => t.date && t.date.startsWith(selectedMonth)), [transactions, selectedMonth]);
 
   const filteredTransactions = useMemo(() =>
@@ -350,6 +354,150 @@ export default function FinanceDashboard() {
     if (useMockData) { setTransactions((prev) => prev.map((t) => t.id === id ? { ...t, status: 'realized' } : t)); return; }
     try { await supabase.from('transactions').update({ status: 'realized' }).eq('id', id); await loadData(); } catch (error) { console.error(error); }
   };
+  // ===== EDITAR LANÇAMENTO =====
+  const handleEditTransaction = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setFormData({
+      created_by: transaction.created_by,
+      type: transaction.type,
+      category_id: transaction.category_id,
+      amount: transaction.amount,
+      date: transaction.date,
+      description: transaction.description || '',
+      status: transaction.status,
+      is_unexpected: transaction.is_unexpected || false,
+      is_recurring: transaction.is_recurring || false,
+      recurring_day: transaction.recurring_day || '',
+      recurring_end_date: '',
+      goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
+    });
+    setIsDrawerOpen(true);
+  };
+
+  // ===== EXCLUIR LANÇAMENTO =====
+  const handleDeleteTransaction = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
+    if (useMockData) {
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      return;
+    }
+    try {
+      await supabase.from('transactions').delete().eq('id', id);
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      alert('Erro ao excluir lançamento');
+    }
+  };
+
+  // ===== SALVAR EDIÇÃO =====
+  const handleUpdateTransaction = async (e: any) => {
+    e.preventDefault();
+    if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
+    if (useMockData) {
+      setTransactions((prev) => prev.map((t) =>
+        t.id === editingTransaction.id ? { ...t, ...formData, amount: parseFloat(formData.amount) } : t
+      ));
+      setEditingTransaction(null);
+      setIsDrawerOpen(false);
+      return;
+    }
+    try {
+      await supabase.from('transactions').update({
+        created_by: formData.created_by,
+        date: formData.date,
+        amount: parseFloat(formData.amount),
+        type: formData.type,
+        category_id: formData.category_id,
+        status: formData.status,
+        is_unexpected: formData.is_unexpected,
+        description: formData.description,
+        is_recurring: formData.is_recurring || false,
+        recurring_day: formData.recurring_day || null,
+      }).eq('id', editingTransaction.id);
+      await loadData();
+      setEditingTransaction(null);
+      setIsDrawerOpen(false);
+    } catch (error: any) {
+      alert(`Erro ao editar: ${error?.message}`);
+    }
+  };
+
+  // ===== CRIAR RECORRÊNCIA =====
+  const handleCreateRecurring = async (e: any) => {
+    e.preventDefault();
+    if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
+    if (!formData.recurring_day) { alert('Informe o dia do mês!'); return; }
+    const template = {
+      created_by: formData.created_by,
+      type: formData.type,
+      category_id: formData.category_id,
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      day_of_month: parseInt(formData.recurring_day),
+      end_date: formData.recurring_end_date || null,
+      is_active: true,
+    };
+    if (useMockData) {
+      setRecurringTemplates((prev) => [...prev, { id: `r${Date.now()}`, ...template }]);
+      setIsDrawerOpen(false);
+      return;
+    }
+    try {
+      await supabase.from('recurring_templates').insert(template);
+      await supabase.from('transactions').insert({
+        created_by: formData.created_by,
+        date: `${selectedMonth}-${String(formData.recurring_day).padStart(2, '0')}`,
+        amount: parseFloat(formData.amount),
+        type: formData.type,
+        category_id: formData.category_id,
+        status: 'projected',
+        is_unexpected: false,
+        description: formData.description,
+        is_recurring: true,
+        recurring_day: parseInt(formData.recurring_day),
+      });
+      await loadData();
+      setIsDrawerOpen(false);
+      alert('Recorrência criada! O lançamento será gerado automaticamente todo mês.');
+    } catch (error: any) {
+      alert(`Erro ao criar recorrência: ${error?.message}`);
+    }
+  };
+
+  // ===== GERAR RECORRÊNCIAS DO MÊS =====
+  const generateRecurringForMonth = async () => {
+    if (useMockData) return;
+    try {
+      const { data: templates } = await supabase.from('recurring_templates').select('*').eq('is_active', true);
+      if (!templates || templates.length === 0) return;
+      const year = selectedMonth.split('-')[0];
+      const month = selectedMonth.split('-')[1];
+      for (const template of templates) {
+        const dayStr = String(template.day_of_month).padStart(2, '0');
+        const dateStr = `${year}-${month}-${dayStr}`;
+        const { data: existing } = await supabase.from('transactions').select('id').eq('date', dateStr).eq('category_id', template.category_id).eq('is_recurring', true).limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from('transactions').insert({
+            created_by: template.created_by,
+            date: dateStr,
+            amount: template.amount,
+            type: template.type,
+            category_id: template.category_id,
+            status: 'projected',
+            is_unexpected: false,
+            description: template.description,
+            is_recurring: true,
+            recurring_day: template.day_of_month,
+          });
+        }
+      }
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao gerar recorrências:', error);
+    }
+  };
+
   // ===== FUNÇÃO PARA BUSCAR NOTÍCIAS (ADICIONE AQUI) =====
   const fetchNews = async (source: string = 'all') => {
     try {
@@ -515,17 +663,30 @@ export default function FinanceDashboard() {
                   {filteredTransactions.map((t) => {
                     const cat = categories.find(c => c.id === t.category_id);
                     return (
-                      <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${t.created_by === 'Felipe' ? 'bg-[#0B1F33] text-white' : 'bg-[#A9823A] text-white'}`}>{t.created_by[0]}</div>
-                          <div>
-                            <p className="font-medium text-sm text-[#0B1F33]">{t.description || cat?.name}</p>
+                      <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg group">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${t.created_by === 'Felipe' ? 'bg-[#0B1F33] text-white' : 'bg-[#A9823A] text-white'}`}>{t.created_by[0]}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm text-[#0B1F33] truncate">{t.description || cat?.name}</p>
+                              {t.is_recurring && <span className="text-xs bg-[#A9823A]/10 text-[#A9823A] px-1.5 py-0.5 rounded flex-shrink-0">🔄</span>}
+                            </div>
                             <p className="text-xs text-[#707780]">{formatDateBR(t.date)} • {cat?.name}</p>
                           </div>
                         </div>
-                        <div className="text-right flex items-center gap-3">
-                          <p className={`font-bold font-display ${t.type === 'receita' ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{t.type === 'receita' ? '+' : '-'} {formatCurrency(Number(t.amount), cat?.name)}</p>
-                          {t.status === 'projected' && <button onClick={() => confirmTransaction(t.id)} className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33]">Efetivar</button>}
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          <p className={`font-bold font-display text-sm ${t.type === 'receita' ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+                            {t.type === 'receita' ? '+' : '-'} {formatCurrency(Number(t.amount), cat?.name)}
+                          </p>
+                          {t.status === 'projected' && (
+                            <button onClick={() => confirmTransaction(t.id)} className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33] hover:bg-[#0B1F33]/5">Efetivar</button>
+                          )}
+                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#0B1F33]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Excluir">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#A94B4B]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </div>
                     );
@@ -811,7 +972,9 @@ export default function FinanceDashboard() {
         <div className="fixed inset-0 z-50 bg-[#0B1F33]/50 backdrop-blur-sm flex justify-end" onClick={() => setIsDrawerOpen(false)}>
           <div className="w-full max-w-md bg-white h-full shadow-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white flex items-center justify-between border-b border-[#0B1F33]/10 p-4 z-10">
-              <h2 className="font-display text-lg font-bold text-[#0B1F33]">{activeTab === 'goals' ? 'Nova Meta / Sonho' : 'Novo Lançamento'}</h2>
+              <h2 className="font-display text-lg font-bold text-[#0B1F33]">
+  {activeTab === 'goals' ? 'Nova Meta / Sonho' : editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
+</h2>
               <button onClick={() => setIsDrawerOpen(false)} className="p-1 hover:bg-[#F7F5F0] rounded"><X className="w-5 h-5 text-[#707780]" /></button>
             </div>
             
@@ -839,7 +1002,7 @@ export default function FinanceDashboard() {
                   <button type="submit" className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg shadow-[#A9823A]/20">Criar Meta</button>
                 </form>
               ) : (
-                <form onSubmit={handleAddTransaction} className="space-y-5">
+                <form onSubmit={editingTransaction ? handleUpdateTransaction : handleAddTransaction} className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-[#0B1F33]">Quem Lançou</label>
                     <select value={formData.created_by} onChange={(e) => setFormData({ ...formData, created_by: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]">
@@ -872,7 +1035,41 @@ export default function FinanceDashboard() {
                     <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
                     <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]" placeholder="Ex: Compras do mês" />
                   </div>
-                  <button type="submit" className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg">Salvar Lançamento</button>
+                  {/* Campos de Recorrência */}
+                  <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.is_recurring || false}
+                        onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                        className="w-4 h-4 rounded border-[#0B1F33]/20 text-[#A9823A] focus:ring-[#A9823A]"
+                      />
+                      <span className="text-sm font-medium text-[#0B1F33]">🔄 Lançamento recorrente (todo mês)</span>
+                    </label>
+                    {formData.is_recurring && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-[#707780]">Dia do mês</label>
+                          <input type="number" min="1" max="31" value={formData.recurring_day || ''} onChange={(e) => setFormData({ ...formData, recurring_day: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" placeholder="Ex: 10" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-[#707780]">Até quando? (opcional)</label>
+                          <input type="date" value={formData.recurring_end_date || ''} onChange={(e) => setFormData({ ...formData, recurring_end_date: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {editingTransaction ? (
+                    <div className="flex gap-3 mt-6">
+                      <button type="button" onClick={() => { setEditingTransaction(null); setIsDrawerOpen(false); }} className="flex-1 bg-[#F7F5F0] text-[#0B1F33] font-semibold py-4 rounded-lg transition-colors border border-[#0B1F33]/10">Cancelar</button>
+                      <button type="submit" className="flex-1 bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors shadow-lg">Salvar Alterações</button>
+                    </div>
+                  ) : formData.is_recurring ? (
+                    <button type="button" onClick={handleCreateRecurring} className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg shadow-[#A9823A]/20">🔄 Criar Recorrência</button>
+                  ) : (
+                    <button type="submit" className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg">Salvar Lançamento</button>
+                  )}
                 </form>
               )}
             </div>
