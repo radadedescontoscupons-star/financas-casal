@@ -1,7 +1,8 @@
 'use client';
-
+import MarketTicker from './components/MarketTicker';
+import NewsCard, { NewsCardSkeleton } from './components/NewsCard';
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Check, AlertTriangle, TrendingUp, Wallet, Calendar, User, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, BarChart3, DollarSign, Download, FileSpreadsheet, FileText, LogOut, Bell } from 'lucide-react';
+import { Plus, Check, AlertTriangle, TrendingUp, Wallet, Calendar, User, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, BarChart3, DollarSign, Download, FileSpreadsheet, FileText, LogOut, Bell, Newspaper } from 'lucide-react';
 import { supabase } from './supabase';
 import { exportToExcel, exportToPDF, formatTransactionsForExport, formatGoalsForExport, formatPatrimonyForExport } from './utils/export';
 
@@ -126,7 +127,7 @@ export default function FinanceDashboard() {
   const [cashFlowHistory, setCashFlowHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [useMockData, setUseMockData] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'flow' | 'health' | 'goals' | 'investments' | 'patrimony'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'flow' | 'health' | 'goals' | 'investments' | 'patrimony' | 'news'>('dashboard');
   const [patrimonyView, setPatrimonyView] = useState<'family' | 'Felipe' | 'Camila'>('family');
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -135,8 +136,12 @@ export default function FinanceDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
   });
-
+  // ===== ESTADOS PARA NOTÍCIAS (ADICIONE AQUI) =====
+  const [news, setNews] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia'>('all');
   const [formData, setFormData] = useState<any>({
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
@@ -345,6 +350,26 @@ export default function FinanceDashboard() {
     if (useMockData) { setTransactions((prev) => prev.map((t) => t.id === id ? { ...t, status: 'realized' } : t)); return; }
     try { await supabase.from('transactions').update({ status: 'realized' }).eq('id', id); await loadData(); } catch (error) { console.error(error); }
   };
+  // ===== FUNÇÃO PARA BUSCAR NOTÍCIAS (ADICIONE AQUI) =====
+  const fetchNews = async (source: string = 'all') => {
+    try {
+      setNewsLoading(true);
+      const response = await fetch(`/api/news?source=${source}`);
+      if (!response.ok) throw new Error('Failed to fetch news');
+      const data = await response.json();
+      setNews(data);
+    } catch (error) {
+      console.error('Erro ao buscar notícias:', error);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'news') {
+      fetchNews(newsSource);
+    }
+  }, [activeTab, newsSource]);
 
   const availableCategories = categories.filter((c) => c.type === formData.type);
 
@@ -410,7 +435,15 @@ export default function FinanceDashboard() {
             </div>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {[{ id: 'dashboard', label: 'Início', icon: Wallet }, { id: 'flow', label: 'Fluxo', icon: BarChart3 }, { id: 'health', label: 'Saúde', icon: Activity }, { id: 'goals', label: 'Metas', icon: Target }, { id: 'investments', label: 'Investimentos', icon: Briefcase }, { id: 'patrimony', label: 'Patrimônio', icon: PiggyBank }].map((tab) => (
+            {[
+              { id: 'dashboard', label: 'Início', icon: Wallet }, 
+              { id: 'flow', label: 'Fluxo', icon: BarChart3 }, 
+              { id: 'health', label: 'Saúde', icon: Activity }, 
+              { id: 'goals', label: 'Metas', icon: Target }, 
+              { id: 'investments', label: 'Investimentos', icon: Briefcase }, 
+              { id: 'patrimony', label: 'Patrimônio', icon: PiggyBank },
+              { id: 'news', label: 'Notícias', icon: Newspaper }
+            ].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#0B1F33] text-white shadow-md' : 'bg-white text-[#707780] hover:bg-[#0B1F33]/5 border border-[#0B1F33]/5'}`}>
                 <tab.icon className="w-4 h-4" />{tab.label}
               </button>
@@ -418,7 +451,7 @@ export default function FinanceDashboard() {
           </div>
         </div>
       </header>
-
+  <MarketTicker />
       <main className="max-w-5xl mx-auto p-6 space-y-6 animate-fade-in">
         
         {/* DASHBOARD */}
@@ -706,6 +739,63 @@ export default function FinanceDashboard() {
                 </div>
               </Card>
             </div>
+          </div>
+        )}
+                {/* ===== ABA NOTÍCIAS ===== */}
+        {activeTab === 'news' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Newspaper className="w-6 h-6 text-[#A9823A]" />
+              <h2 className="font-display text-2xl font-bold text-[#0B1F33]">Notícias do Mercado</h2>
+            </div>
+
+            {/* Filtros por Fonte */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {[
+                { id: 'all', label: 'Todas' },
+                { id: 'infomoney', label: 'InfoMoney' },
+                { id: 'investing', label: 'Investing.com' },
+                { id: 'investopedia', label: 'Investopedia' },
+              ].map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setNewsSource(filter.id as any)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    newsSource === filter.id
+                      ? 'bg-[#0B1F33] text-white shadow-md'
+                      : 'bg-white text-[#707780] hover:bg-[#0B1F33]/5 border border-[#0B1F33]/10'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid de Notícias */}
+            {newsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <NewsCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : news.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-dashed border-[#0B1F33]/20">
+                <Newspaper className="w-16 h-16 text-[#0B1F33]/10 mx-auto mb-4" />
+                <p className="text-[#707780] text-lg">Nenhuma notícia encontrada</p>
+                <button 
+                  onClick={() => fetchNews(newsSource)}
+                  className="mt-4 text-[#A9823A] font-medium hover:underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {news.map((item) => (
+                  <NewsCard key={item.id} news={item} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
