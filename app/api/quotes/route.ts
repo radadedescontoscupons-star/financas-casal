@@ -9,21 +9,16 @@ interface QuoteResult {
   category: 'br' | 'us' | 'index' | 'currency';
 }
 
-// ===== CONFIGURAÇÃO DOS TICKERS =====
-const TICKERS_CONFIG = [
-  //  ÍNDICES / BOLSAS
+// ===== GRUPO 1: Índices + Moedas + Primeiras 7 Ações BR =====
+const GROUP_1 = [
   { api: 'INDEX:^BVSP', display: 'IBOV', name: 'Ibovespa', category: 'index' as const },
   { api: 'INDEX:^GSPC', display: 'S&P 500', name: 'S&P 500', category: 'index' as const },
   { api: 'INDEX:^IXIC', display: 'NASDAQ', name: 'Nasdaq', category: 'index' as const },
   { api: 'INDEX:^DJI', display: 'DOW', name: 'Dow Jones', category: 'index' as const },
   { api: 'INDEX:^IFIX', display: 'IFIX', name: 'Índice FIIs', category: 'index' as const },
-
-  // 💰 MOEDAS / CRIPTO
   { api: 'CURRENCY:USD-BRL', display: 'USD/BRL', name: 'Dólar', category: 'currency' as const },
   { api: 'CURRENCY:EUR-BRL', display: 'EUR/BRL', name: 'Euro', category: 'currency' as const },
   { api: 'CURRENCY:BTC-BRL', display: 'BTC/BRL', name: 'Bitcoin', category: 'currency' as const },
-
-  // 🇧🇷 AÇÕES BRASIL - TOP 15
   { api: 'B3:PETR4', display: 'PETR4', name: 'Petrobras', category: 'br' as const },
   { api: 'B3:VALE3', display: 'VALE3', name: 'Vale', category: 'br' as const },
   { api: 'B3:ITUB4', display: 'ITUB4', name: 'Itaú', category: 'br' as const },
@@ -31,6 +26,10 @@ const TICKERS_CONFIG = [
   { api: 'B3:ABEV3', display: 'ABEV3', name: 'Ambev', category: 'br' as const },
   { api: 'B3:WEGE3', display: 'WEGE3', name: 'WEG', category: 'br' as const },
   { api: 'B3:RENT3', display: 'RENT3', name: 'Localiza', category: 'br' as const },
+];
+
+// ===== GRUPO 2: Restante Ações BR + Ações EUA (BDRs) =====
+const GROUP_2 = [
   { api: 'B3:B3SA3', display: 'B3SA3', name: 'B3', category: 'br' as const },
   { api: 'B3:SUZB3', display: 'SUZB3', name: 'Suzano', category: 'br' as const },
   { api: 'B3:JBSS3', display: 'JBSS3', name: 'JBS', category: 'br' as const },
@@ -39,8 +38,6 @@ const TICKERS_CONFIG = [
   { api: 'B3:PRIO3', display: 'PRIO3', name: 'Prio', category: 'br' as const },
   { api: 'B3:SBSP3', display: 'SBSP3', name: 'Sabesp', category: 'br' as const },
   { api: 'B3:ELET3', display: 'ELET3', name: 'Eletrobras', category: 'br' as const },
-
-  // 🇺🇸 AÇÕES EUA (via BDRs na B3)
   { api: 'B3:AAPL34', display: 'AAPL34', name: 'Apple BDR', category: 'us' as const },
   { api: 'B3:MSFT34', display: 'MSFT34', name: 'Microsoft BDR', category: 'us' as const },
   { api: 'B3:GOGL34', display: 'GOGL34', name: 'Google BDR', category: 'us' as const },
@@ -49,6 +46,9 @@ const TICKERS_CONFIG = [
   { api: 'B3:NVDA34', display: 'NVDA34', name: 'NVIDIA BDR', category: 'us' as const },
   { api: 'B3:META34', display: 'META34', name: 'Meta BDR', category: 'us' as const },
 ];
+
+// Lista completa na ordem correta
+const TICKERS_CONFIG = [...GROUP_1, ...GROUP_2];
 
 // ===== FALLBACK MOCKADO =====
 const MOCK_QUOTES: QuoteResult[] = [
@@ -84,47 +84,23 @@ const MOCK_QUOTES: QuoteResult[] = [
   { ticker: 'META34', name: 'Meta BDR', price: 28.90, change: 0.56, changePercent: 1.98, category: 'us' },
 ];
 
-// ===== BUSCAR DADOS DA HG BRASIL =====
-async function fetchHgBrasil(): Promise<QuoteResult[]> {
-  const apiKey = process.env.HG_BRASIL_API_KEY;
-  
-  if (!apiKey) {
-    console.warn('HG_BRASIL_API_KEY não configurada, usando mock');
-    return MOCK_QUOTES;
-  }
-
-  const tickersParam = TICKERS_CONFIG.map(t => t.api).join(',');
-  
+// ===== BUSCAR UM GRUPO DA HG BRASIL =====
+async function fetchGroup(group: any[], apiKey: string): Promise<QuoteResult[]> {
+  const tickersParam = group.map(t => t.api).join(',');
   try {
-    const response = await fetch(
+    const res = await fetch(
       `https://api.hgbrasil.com/v2/finance/quotes?tickers=${encodeURIComponent(tickersParam)}&key=${apiKey}`,
-      {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        next: { revalidate: 30 },
-      }
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 30 } }
     );
-
-    if (!response.ok) throw new Error(`HG Brasil retornou ${response.status}`);
-
-    const data = await response.json();
-    
-    if (!data.results || data.results.length === 0) {
-      throw new Error('HG Brasil retornou dados vazios');
-    }
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    if (!data.results) return [];
 
     const results: QuoteResult[] = [];
-
-    for (const config of TICKERS_CONFIG) {
-      const item = data.results.find((r: any) => {
-        if (config.api.startsWith('INDEX:')) {
-          return r.ticker === config.api || r.symbol === config.api.replace('INDEX:', '');
-        }
-        if (config.api.startsWith('CURRENCY:')) {
-          return r.ticker === config.api || r.symbol === config.api.replace('CURRENCY:', '');
-        }
-        return r.ticker === config.api || r.symbol === config.api.replace('B3:', '');
-      });
-
+    for (const config of group) {
+      const item = data.results.find((r: any) =>
+        r.ticker === config.api || r.symbol === config.api.replace(/^(INDEX:|CURRENCY:|B3:)/, '')
+      );
       if (item?.quote) {
         results.push({
           ticker: config.display,
@@ -136,32 +112,60 @@ async function fetchHgBrasil(): Promise<QuoteResult[]> {
         });
       }
     }
+    return results;
+  } catch (e) {
+    console.error('Erro ao buscar grupo:', e);
+    return [];
+  }
+}
 
-    // Se conseguiu pelo menos alguns dados, usar + mock para os que faltaram
-    if (results.length > 0) {
+// ===== BUSCAR TODOS OS DADOS =====
+async function fetchHgBrasil(): Promise<QuoteResult[]> {
+  const apiKey = process.env.HG_BRASIL_API_KEY;
+
+  if (!apiKey) {
+    console.warn('HG_BRASIL_API_KEY não configurada, usando mock');
+    return MOCK_QUOTES;
+  }
+
+  try {
+    // Buscar os 2 grupos em paralelo
+    const [group1Results, group2Results] = await Promise.all([
+      fetchGroup(GROUP_1, apiKey),
+      fetchGroup(GROUP_2, apiKey),
+    ]);
+
+    let allResults = [...group1Results, ...group2Results];
+
+    // Preencher com mock os que faltaram
+    if (allResults.length > 0) {
       const missingTickers = TICKERS_CONFIG.filter(
-        c => !results.find(r => r.ticker === c.display)
+        c => !allResults.find(r => r.ticker === c.display)
       );
-      
       for (const missing of missingTickers) {
         const mockItem = MOCK_QUOTES.find(m => m.ticker === missing.display);
-        if (mockItem) results.push(mockItem);
+        if (mockItem) allResults.push(mockItem);
       }
-      
-      return results;
+
+      // Ordenar na ordem original
+      const ordered = TICKERS_CONFIG
+        .map(t => allResults.find(r => r.ticker === t.display))
+        .filter(Boolean) as QuoteResult[];
+
+      return ordered;
     }
 
     throw new Error('Nenhum dado válido retornado');
   } catch (error) {
     console.error('Erro HG Brasil:', error);
-    
-    // Fallback: tentar AwesomeAPI para moedas
+
+    // Fallback: AwesomeAPI para moedas + mock pro resto
     try {
       const awesomeRes = await fetch('https://economia.awesomeapi.com.br/json/all');
       const awesomeData = await awesomeRes.json();
-      
+
       const currencyResults: QuoteResult[] = [];
-      
+
       if (awesomeData.USD) {
         currencyResults.push({
           ticker: 'USD/BRL', name: 'Dólar',
@@ -189,8 +193,7 @@ async function fetchHgBrasil(): Promise<QuoteResult[]> {
           category: 'currency',
         });
       }
-      
-      // Juntar moedas reais + mock para o resto
+
       const mockWithoutCurrency = MOCK_QUOTES.filter(m => m.category !== 'currency');
       return [...currencyResults, ...mockWithoutCurrency];
     } catch {
@@ -202,7 +205,7 @@ async function fetchHgBrasil(): Promise<QuoteResult[]> {
 export async function GET() {
   try {
     const results = await fetchHgBrasil();
-    
+
     return NextResponse.json(results, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
