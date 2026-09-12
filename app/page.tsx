@@ -173,13 +173,7 @@ export default function FinanceDashboard() {
         setGoalContributions([]); setAssets([]); setLiabilities([]);
         setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
       } else {
-             // Corrige o nome da coluna se o banco estiver usando 'transaction_type'
-      const correctedCats = (catsData || []).map((cat: any) => ({
-        ...cat,
-        type: cat.transaction_type || cat.type // Garante que tenha a propriedade 'type'
-      }));
-      
-      setCategories(correctedCats);
+       setCategories(catsData || []);;
         const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
         const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
         const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
