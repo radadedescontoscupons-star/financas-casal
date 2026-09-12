@@ -13,28 +13,31 @@ const geistMono = Geist_Mono({
 });
 
 // Configurações de Metadados (Título, Descrição, Ícones)
-export const metadata: Metadata = {
-  title: "Finanças do Casal",
-  description: "Gestão Patrimonial e Financeira",
-  manifest: "/manifest.json", // Link para o arquivo que criamos
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Finanças",
-  },
+export const metadata = {
+  title: 'Finanças do Casal',
+  description: 'Dashboard financeiro do casal',
   icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
-};
-
-// Configurações de Visualização (Cor da barra de status no celular)
-export const viewport: Viewport = {
-  themeColor: "#0B1F33",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  openGraph: {
+    title: 'Finanças do Casal',
+    description: 'Dashboard financeiro do casal',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Finanças do Casal',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
