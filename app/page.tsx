@@ -133,8 +133,8 @@ export default function FinanceDashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [viewFilter, setViewFilter] = useState<'all' | 'realized' | 'projected'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'Felipe' | 'Camila'>('all');
-    const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
@@ -144,8 +144,11 @@ export default function FinanceDashboard() {
   // ===== ESTADOS PARA NOTÍCIAS (ADICIONE AQUI) =====
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
-    const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia' | 'valor' | 'moneytimes'>('all');
+  const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia' | 'valor' | 'moneytimes'>('all');
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
   const [formData, setFormData] = useState<any>({
+    
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
     goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
@@ -318,7 +321,90 @@ export default function FinanceDashboard() {
   const handleExportGoalsPDF = () => exportToPDF(formatGoalsForExport(goalsWithProgress), `metas_${selectedMonth}`, 'Relatório de Metas');
   const handleExportPatrimonyExcel = () => exportToExcel(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Patrimônio');
   const handleExportPatrimonyPDF = () => exportToPDF(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Relatório Patrimonial');
+  // ===== RECONHECIMENTO DE VOZ INTELIGENTE =====
+  const startVoiceRecognition = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.');
+      return;
+    }
 
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      setVoiceTranscript(transcript);
+      
+      // Inteligência para extrair dados automaticamente
+      let detectedAmount = '';
+      let detectedDesc = '';
+      let detectedCategory = '';
+      let detectedType = 'despesa_variavel';
+
+      // Extrair valor (procura padrões como "50 reais", "R$ 100", "150")
+      const amountMatch = transcript.match(/(\d+[.,]?\d*)\s*(reais|real|r\$|rs)/i) || 
+                          transcript.match(/(r\$|rs)\s*(\d+[.,]?\d*)/i) ||
+                          transcript.match(/\b(\d+[.,]?\d{2})\b/);
+      
+      if (amountMatch) {
+        detectedAmount = (amountMatch[2] || amountMatch[1]).replace(',', '.');
+      }
+
+      // Detectar tipo
+      if (transcript.includes('receita') || transcript.includes('ganhei') || transcript.includes('salário') || transcript.includes('freelance')) {
+        detectedType = 'receita';
+      } else if (transcript.includes('investimento') || transcript.includes('aporte') || transcript.includes('comprei ação')) {
+        detectedType = 'investimento';
+      }
+
+      // Detectar categoria baseada em palavras-chave
+      const categoryMap: Record<string, string> = {
+        'mercado': 'c17', 'supermercado': 'c17', 'compra': 'c17',
+        'uber': 'c21', 'taxi': 'c21', 'gasolina': 'c21', 'combustível': 'c21',
+        'restaurante': 'c22', 'ifood': 'c22', 'almoço': 'c22', 'jantar': 'c22',
+        'luz': 'c9', 'energia': 'c9', 'internet': 'c12', 'wifi': 'c12',
+        'aluguel': 'c7', 'condomínio': 'c8',
+        'farmácia': 'c18', 'remédio': 'c18', 'médico': 'c18',
+        'lazer': 'c23', 'cinema': 'c23', 'bar': 'c23',
+        'vestuário': 'c24', 'roupa': 'c24', 'sapato': 'c24',
+        'pet': 'c26', 'cachorro': 'c26', 'gato': 'c26', 'ração': 'c26',
+        'cartão': 'c27', 'credito': 'c27',
+        'ações': 'c29', 'fii': 'c30', 'tesouro': 'c34', 'dólar': 'c32', 'bitcoin': 'c33',
+        'reserva': 'c36', 'emergência': 'c36', 'viagem': 'c37'
+      };
+
+      for (const [keyword, catId] of Object.entries(categoryMap)) {
+        if (transcript.includes(keyword)) {
+          detectedCategory = catId;
+          break;
+        }
+      }
+
+      // Preencher o formulário automaticamente
+      setFormData(prev => ({
+        ...prev,
+        type: detectedType,
+        amount: detectedAmount || prev.amount,
+        description: transcript.charAt(0).toUpperCase() + transcript.slice(1),
+        category_id: detectedCategory || prev.category_id,
+      }));
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Erro no reconhecimento:', event.error);
+      setIsListening(false);
+      alert('Não consegui entender. Tente falar mais devagar.');
+    };
+
+    recognition.start();
+  };
   const handleAddTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
@@ -1034,8 +1120,43 @@ export default function FinanceDashboard() {
                     <input type="date" required value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
-                    <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]" placeholder="Ex: Compras do mês" />
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
+                      <button 
+                        type="button"
+                        onClick={startVoiceRecognition}
+                        disabled={isListening}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          isListening 
+                            ? 'bg-red-100 text-red-600 animate-pulse border border-red-200' 
+                            : 'bg-[#A9823A]/10 text-[#A9823A] hover:bg-[#A9823A]/20 border border-[#A9823A]/20'
+                        }`}
+                      >
+                        {isListening ? (
+                          <>
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                            Ouvindo...
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            Falar
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <input 
+                      type="text" 
+                      value={formData.description} 
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+                      className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A] transition-colors" 
+                      placeholder="Ex: Compras do mês ou clique em 'Falar'" 
+                    />
+                    {voiceTranscript && (
+                      <p className="text-xs text-[#707780] italic bg-[#F7F5F0] p-2 rounded border border-dashed border-[#0B1F33]/10">
+                         "{voiceTranscript}"
+                      </p>
+                    )}
                   </div>
                                    {/*                   {/* Campos de Recorrência */}
                   <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
