@@ -662,7 +662,7 @@ export default function FinanceDashboard() {
               </div>
               {filteredTransactions.length === 0 ? <p className="text-center text-[#707780] py-8 text-sm">Nenhum lançamento neste mês.</p> : (
                 <div className="space-y-3">
-                  {filteredTransactions.map((t) => {
+                                   {filteredTransactions.map((t) => {
                     const cat = categories.find(c => c.id === t.category_id);
                     return (
                       <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg group">
@@ -683,10 +683,10 @@ export default function FinanceDashboard() {
                           {t.status === 'projected' && (
                             <button onClick={() => confirmTransaction(t.id)} className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33] hover:bg-[#0B1F33]/5">Efetivar</button>
                           )}
-                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar">
+                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors " title="Editar">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#0B1F33]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                           </button>
-                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Excluir">
+                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors" title="Excluir">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#A94B4B]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
                         </div>
@@ -1037,7 +1037,7 @@ export default function FinanceDashboard() {
                     <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
                     <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0]" placeholder="Ex: Compras do mês" />
                   </div>
-                                   {/* Campos de Recorrência */}
+                                   {/*                   {/* Campos de Recorrência */}
                   <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -1046,17 +1046,28 @@ export default function FinanceDashboard() {
                         onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
                         className="w-4 h-4 rounded border-[#0B1F33]/20 text-[#A9823A] focus:ring-[#A9823A]"
                       />
-                      <span className="text-sm font-medium text-[#0B1F33]">🔄 Lançamento recorrente (todo mês)</span>
+                      <span className="text-sm font-medium text-[#0B1F33]">🔄 Lançamento recorrente</span>
                     </label>
                     {formData.is_recurring && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-xs text-[#707780]">Dia do mês</label>
-                          <input type="number" min="1" max="31" value={formData.recurring_day || ''} onChange={(e) => setFormData({ ...formData, recurring_day: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" placeholder="Ex: 10" />
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                          <label className="text-xs text-[#707780] block mb-1">Dia do mês</label>
+                          <input 
+                            type="number" min="1" max="31" 
+                            value={formData.recurring_day || ''} 
+                            onChange={(e) => setFormData({ ...formData, recurring_day: e.target.value })} 
+                            className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" 
+                            placeholder="Ex: 10" 
+                          />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-[#707780]">Até quando? (opcional)</label>
-                          <input type="date" value={formData.recurring_end_date || ''} onChange={(e) => setFormData({ ...formData, recurring_end_date: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" />
+                        <div>
+                          <label className="text-xs text-[#707780] block mb-1">Até quando?</label>
+                          <input 
+                            type="date" 
+                            value={formData.recurring_end_date || ''} 
+                            onChange={(e) => setFormData({ ...formData, recurring_end_date: e.target.value })} 
+                            className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" 
+                          />
                         </div>
                       </div>
                     )}
@@ -1064,13 +1075,35 @@ export default function FinanceDashboard() {
 
                   {editingTransaction ? (
                     <div className="flex gap-3 mt-6">
-                      <button type="button" onClick={() => { setEditingTransaction(null); setIsDrawerOpen(false); }} className="flex-1 bg-[#F7F5F0] text-[#0B1F33] font-semibold py-4 rounded-lg transition-colors border border-[#0B1F33]/10">Cancelar</button>
-                      <button type="submit" className="flex-1 bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors shadow-lg">Salvar Alterações</button>
+                      <button 
+                        type="button" 
+                        onClick={() => { setEditingTransaction(null); setIsDrawerOpen(false); }} 
+                        className="flex-1 bg-[#F7F5F0] text-[#0B1F33] font-semibold py-4 rounded-lg transition-colors border border-[#0B1F33]/10"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="flex-1 bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors shadow-lg"
+                      >
+                        Salvar Alterações
+                      </button>
                     </div>
                   ) : formData.is_recurring ? (
-                    <button type="button" onClick={handleCreateRecurring} className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg shadow-[#A9823A]/20">🔄 Criar Recorrência</button>
+                    <button 
+                      type="button" 
+                      onClick={handleCreateRecurring} 
+                      className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg"
+                    >
+                      🔄 Criar Recorrência
+                    </button>
                   ) : (
-                    <button type="submit" className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg">Salvar Lançamento</button>
+                    <button 
+                      type="submit" 
+                      className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg"
+                    >
+                      Salvar Lançamento
+                    </button>
                   )}
                 </form>
               )}
