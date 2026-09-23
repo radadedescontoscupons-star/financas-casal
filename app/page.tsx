@@ -405,6 +405,91 @@ export default function FinanceDashboard() {
 
     recognition.start();
   };
+
+    // ===== INTELIGÊNCIA DE VOZ =====
+  const startVoiceRecognition = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Seu navegador não suporta voz. Use Chrome ou Edge.');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      setVoiceTranscript(transcript);
+      
+      let detectedAmount = '';
+      let detectedCategory = '';
+      let detectedType = 'despesa_variavel';
+
+      // 1. Extrair Valor (ex: "50 reais", "R$ 100", "150")
+      const amountMatch = transcript.match(/(\d+[.,]?\d*)\s*(reais|real|r\$|rs)/i) || 
+                          transcript.match(/(r\$|rs)\s*(\d+[.,]?\d*)/i) ||
+                          transcript.match(/\b(\d+[.,]?\d{2})\b/);
+      
+      if (amountMatch) {
+        detectedAmount = (amountMatch[2] || amountMatch[1]).replace(',', '.');
+      }
+
+      // 2. Detectar Tipo
+      if (transcript.includes('receita') || transcript.includes('ganhei') || transcript.includes('salário') || transcript.includes('freelance')) {
+        detectedType = 'receita';
+      } else if (transcript.includes('investimento') || transcript.includes('aporte') || transcript.includes('comprei ação')) {
+        detectedType = 'investimento';
+      }
+
+      // 3. Mapeamento Inteligente de Categorias (AJUSTE OS IDs SE NECESSÁRIO)
+      // Dica: Abra o console do navegador (F12) e digite: categories.map(c => ({id: c.id, name: c.name})) 
+      // para ver os IDs corretos das suas categorias e substituir abaixo.
+      const categoryMap: Record<string, string> = {
+        'mercado': 'c17', 'supermercado': 'c17', 'compra': 'c17',
+        'uber': 'c21', 'taxi': 'c21', 'gasolina': 'c21', 'combustível': 'c21',
+        'restaurante': 'c22', 'ifood': 'c22', 'almoço': 'c22', 'jantar': 'c22',
+        'luz': 'c9', 'energia': 'c9', 'internet': 'c12', 'wifi': 'c12',
+        'aluguel': 'c7', 'condomínio': 'c8',
+        'farmácia': 'c18', 'remédio': 'c18', 'médico': 'c18',
+        'lazer': 'c23', 'cinema': 'c23', 'bar': 'c23',
+        'vestuário': 'c24', 'roupa': 'c24', 'sapato': 'c24',
+        'pet': 'c26', 'cachorro': 'c26', 'gato': 'c26', 'ração': 'c26',
+        'cartão': 'c27', 'credito': 'c27',
+        'ações': 'c29', 'fii': 'c30', 'tesouro': 'c34', 'dólar': 'c32', 'bitcoin': 'c33',
+        'reserva': 'c36', 'emergência': 'c36', 'viagem': 'c37'
+      };
+
+      for (const [keyword, catId] of Object.entries(categoryMap)) {
+        if (transcript.includes(keyword)) {
+          detectedCategory = catId;
+          break;
+        }
+      }
+
+      // 4. Preencher o Formulário Automaticamente
+      setFormData(prev => ({
+        ...prev,
+        type: detectedType,
+        amount: detectedAmount || prev.amount,
+        description: transcript.charAt(0).toUpperCase() + transcript.slice(1),
+        category_id: detectedCategory || prev.category_id,
+      }));
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Erro no reconhecimento:', event.error);
+      setIsListening(false);
+      alert('Não consegui entender. Tente falar mais devagar.');
+    };
+
+    recognition.start();
+  };
   const handleAddTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
