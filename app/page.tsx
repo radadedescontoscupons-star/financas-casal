@@ -594,14 +594,15 @@ export default function FinanceDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-5">
-                <div className="flex items-center gap-2 mb-3"><TrendingUp className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Aportes do Mês</h3></div>
-                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
-                <div className="flex gap-3 mt-4 text-xs text-[#707780]"><span>Ações: {formatBRL(metrics.investmentTotals.acoes)}</span><span>•</span><span>FIIs: {formatBRL(metrics.investmentTotals.fiis)}</span><span>•</span><span>USD: {formatUSD(metrics.investmentTotals.dolar)}</span></div>
-              </Card>
-              <Card className="p-5">
+                            <Card className="p-5">
                 <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
-                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.investmentTotals.acoes + metrics.investmentTotals.fiis + (metrics.investmentTotals.dolar * 5.5))}</p>
+                {/* CORREÇÃO: Usa a variável totalAportes que já filtra pelo mês selecionado */}
+                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
+                <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
+              </Card>
+                            <Card className="p-5">
+                <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
+                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
                 <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
               </Card>
             </div>
