@@ -27,14 +27,6 @@ const formatMonthYear = (dateString: string) => {
   return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
 };
 
-// ===== DADOS MOCKADOS =====
-const generateMockData = () => {
-  return {
-    categories: [], budgets: [], goals: [], transactions: [], goalContributions: [],
-    assets: [], liabilities: [], patrimonyHistory: [], cashFlowHistory: [],
-  };
-};
-
 // ===== COMPONENTES UI PREMIUM =====
 function Card({ children, className = '', gold = false }: any) {
   return <div className={`card-premium ${gold ? 'card-gold' : ''} ${className}`}>{children}</div>;
@@ -134,21 +126,24 @@ export default function FinanceDashboard() {
   const [viewFilter, setViewFilter] = useState<'all' | 'realized' | 'projected'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'Felipe' | 'Camila'>('all');
   const [selectedMonth, setSelectedMonth] = useState(() => {
-  const now = new Date();
+    const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // 👇 COLE AQUI AS 2 LINHAS:
+  // Estados para Edição e Recorrência
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [recurringTemplates, setRecurringTemplates] = useState<any[]>([]);
-  // ===== ESTADOS PARA NOTÍCIAS (ADICIONE AQUI) =====
+  
+  // Estados para Notícias
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia' | 'valor' | 'moneytimes'>('all');
+  
+  // Estados para Voz
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  
   const [formData, setFormData] = useState<any>({
-    
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
     goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
@@ -178,14 +173,12 @@ export default function FinanceDashboard() {
     setLoading(true);
     try {
       const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
-      // ADICIONE ESTA LINHA ABAIXO PARA VER NO CONSOLE DO NAVEGADOR:
-      console.log('CATEGORIAS DO BANCO:', catsData, 'ERRO:', catsError);
       if (catsError) {
         setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
         setGoalContributions([]); setAssets([]); setLiabilities([]);
         setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
       } else {
-       setCategories(catsData || []);;
+       setCategories(catsData || []);
         const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
         const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
         const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
@@ -204,9 +197,11 @@ export default function FinanceDashboard() {
     setLoading(false);
     setTimeout(() => generateRecurringForMonth(), 1000);
   };
+
   const monthlyTransactions = transactions.filter(t => 
-  t.date && t.date.startsWith(selectedMonth)
-); // ✅ CORRETO: filtra pelo mês selecionado
+    t.date && t.date.startsWith(selectedMonth)
+  );
+
   const filteredTransactions = useMemo(() =>
     monthlyTransactions.filter((t) => {
       if (viewFilter !== 'all' && t.status !== viewFilter) return false;
@@ -216,37 +211,32 @@ export default function FinanceDashboard() {
     [monthlyTransactions, viewFilter, userFilter]
   );
 
+  // ===== MÉTRICAS CORRIGIDAS =====
   const metrics = useMemo(() => {
     const realizedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
     const projectedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'projected').reduce((sum, t) => sum + Number(t.amount), 0);
     const realizedExpenses = monthlyTransactions.filter((t) => (t.type === 'despesa_fixa' || t.type === 'despesa_variavel') && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
     const unexpectedExpenses = monthlyTransactions.filter((t) => t.is_unexpected && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
-   const investments = monthlyTransactions.filter((t) => t.type === 'investimento' && t.status === 'realized');
-
+    
+    const investments = monthlyTransactions.filter((t) => t.type === 'investimento' && t.status === 'realized');
     const totalAportes = investments.reduce((sum, t) => sum + Number(t.amount), 0);
-    const investmentTotals = {
-  acoes: investments.filter((t) => {
-    const cat = categories.find(c => c.id === t.category_id);
-    return cat?.name === 'Ações';
-  }).reduce((s, t) => s + Number(t.amount), 0),
-  
-  fiis: investments.filter((t) => {
-    const cat = categories.find(c => c.id === t.category_id);
-    return cat?.name === 'FIIs';
-  }).reduce((s, t) => s + Number(t.amount), 0),
-  
-  dolar: investments.filter((t) => {
-    const cat = categories.find(c => c.id === t.category_id);
-    return cat?.name === 'Dólar';
-  }).reduce((s, t) => s + Number(t.amount), 0),
-};
+    
+    // Yield real do mês (baseado no campo yield_amount se existir)
+    const monthlyYield = investments.reduce((sum, t) => sum + (Number(t.yield_amount) || 0), 0);
 
-// Rentabilidade REAL do mês (se houver campo yield_amount nos investimentos)
-const monthlyYield = investments.reduce((sum, t) => sum + (Number(t.yield_amount) || 0), 0);
-const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
+    const investmentTotals = {
+      acoes: investments.filter((t) => categories.find(c => c.id === t.category_id)?.name === 'Ações').reduce((s, t) => s + Number(t.amount), 0),
+      fiis: investments.filter((t) => categories.find(c => c.id === t.category_id)?.name === 'FIIs').reduce((s, t) => s + Number(t.amount), 0),
+      dolar: investments.filter((t) => categories.find(c => c.id === t.category_id)?.name === 'Dólar').reduce((s, t) => s + Number(t.amount), 0),
+    };
+
     const saldo = realizedIncome - realizedExpenses;
     const saldoDisponivel = saldo - totalAportes;
-    return { realizedIncome, projectedIncome, realizedExpenses, unexpectedExpenses, totalAportes, saldo, saldoDisponivel, investmentTotals, investments };
+
+    return { 
+      realizedIncome, projectedIncome, realizedExpenses, unexpectedExpenses, 
+      totalAportes, saldo, saldoDisponivel, investmentTotals, investments, monthlyYield 
+    };
   }, [monthlyTransactions, categories]);
 
   const flowMetrics = useMemo(() => {
@@ -338,92 +328,56 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
   const handleExportGoalsPDF = () => exportToPDF(formatGoalsForExport(goalsWithProgress), `metas_${selectedMonth}`, 'Relatório de Metas');
   const handleExportPatrimonyExcel = () => exportToExcel(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Patrimônio');
   const handleExportPatrimonyPDF = () => exportToPDF(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Relatório Patrimonial');
-  // ===== RECONHECIMENTO DE VOZ INTELIGENTE =====
+
+  // ===== RECONHECIMENTO DE VOZ =====
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.');
       return;
     }
-
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
     const recognition = new SpeechRecognition();
-    
     recognition.lang = 'pt-BR';
     recognition.continuous = false;
     recognition.interimResults = false;
-
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript.toLowerCase();
       setVoiceTranscript(transcript);
-      
-      // Inteligência para extrair dados automaticamente
       let detectedAmount = '';
-      let detectedDesc = '';
       let detectedCategory = '';
       let detectedType = 'despesa_variavel';
 
-      // Extrair valor (procura padrões como "50 reais", "R$ 100", "150")
       const amountMatch = transcript.match(/(\d+[.,]?\d*)\s*(reais|real|r\$|rs)/i) || 
                           transcript.match(/(r\$|rs)\s*(\d+[.,]?\d*)/i) ||
                           transcript.match(/\b(\d+[.,]?\d{2})\b/);
-      
-      if (amountMatch) {
-        detectedAmount = (amountMatch[2] || amountMatch[1]).replace(',', '.');
-      }
+      if (amountMatch) detectedAmount = (amountMatch[2] || amountMatch[1]).replace(',', '.');
 
-      // Detectar tipo
-      if (transcript.includes('receita') || transcript.includes('ganhei') || transcript.includes('salário') || transcript.includes('freelance')) {
-        detectedType = 'receita';
-      } else if (transcript.includes('investimento') || transcript.includes('aporte') || transcript.includes('comprei ação')) {
-        detectedType = 'investimento';
-      }
+      if (transcript.includes('receita') || transcript.includes('ganhei') || transcript.includes('salário')) detectedType = 'receita';
+      else if (transcript.includes('investimento') || transcript.includes('aporte')) detectedType = 'investimento';
 
-      // Detectar categoria baseada em palavras-chave
       const categoryMap: Record<string, string> = {
-        'mercado': 'c17', 'supermercado': 'c17', 'compra': 'c17',
-        'uber': 'c21', 'taxi': 'c21', 'gasolina': 'c21', 'combustível': 'c21',
-        'restaurante': 'c22', 'ifood': 'c22', 'almoço': 'c22', 'jantar': 'c22',
-        'luz': 'c9', 'energia': 'c9', 'internet': 'c12', 'wifi': 'c12',
-        'aluguel': 'c7', 'condomínio': 'c8',
-        'farmácia': 'c18', 'remédio': 'c18', 'médico': 'c18',
-        'lazer': 'c23', 'cinema': 'c23', 'bar': 'c23',
-        'vestuário': 'c24', 'roupa': 'c24', 'sapato': 'c24',
-        'pet': 'c26', 'cachorro': 'c26', 'gato': 'c26', 'ração': 'c26',
-        'cartão': 'c27', 'credito': 'c27',
-        'ações': 'c29', 'fii': 'c30', 'tesouro': 'c34', 'dólar': 'c32', 'bitcoin': 'c33',
-        'reserva': 'c36', 'emergência': 'c36', 'viagem': 'c37'
+        'mercado': 'c17', 'supermercado': 'c17', 'uber': 'c21', 'gasolina': 'c21',
+        'restaurante': 'c22', 'ifood': 'c22', 'luz': 'c9', 'internet': 'c12',
+        'aluguel': 'c7', 'farmácia': 'c18', 'lazer': 'c23', 'vestuário': 'c24',
+        'pet': 'c26', 'cartão': 'c27', 'ações': 'c29', 'fii': 'c30', 'dólar': 'c32',
+        'bitcoin': 'c33', 'reserva': 'c36', 'viagem': 'c37'
       };
-
       for (const [keyword, catId] of Object.entries(categoryMap)) {
-        if (transcript.includes(keyword)) {
-          detectedCategory = catId;
-          break;
-        }
+        if (transcript.includes(keyword)) { detectedCategory = catId; break; }
       }
 
-      // Preencher o formulário automaticamente
       setFormData(prev => ({
-        ...prev,
-        type: detectedType,
-        amount: detectedAmount || prev.amount,
+        ...prev, type: detectedType, amount: detectedAmount || prev.amount,
         description: transcript.charAt(0).toUpperCase() + transcript.slice(1),
         category_id: detectedCategory || prev.category_id,
       }));
     };
-
-    recognition.onerror = (event: any) => {
-      console.error('Erro no reconhecimento:', event.error);
-      setIsListening(false);
-      alert('Não consegui entender. Tente falar mais devagar.');
-    };
-
+    recognition.onerror = () => { setIsListening(false); alert('Não consegui entender. Tente novamente.'); };
     recognition.start();
   };
 
-  
   const handleAddTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
@@ -431,7 +385,11 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
       setTransactions((prev) => [...prev, { id: `t${Date.now()}`, ...formData, amount: parseFloat(formData.amount) }]);
     } else {
       try {
-        await supabase.from('transactions').insert({ created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount), type: formData.type, category_id: formData.category_id, status: formData.status, is_unexpected: formData.is_unexpected, description: formData.description });
+        await supabase.from('transactions').insert({ 
+          created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount), 
+          type: formData.type, category_id: formData.category_id, status: formData.status, 
+          is_unexpected: formData.is_unexpected, description: formData.description 
+        });
         await loadData();
       } catch (error: any) { alert(`Erro: ${error?.message}`); return; }
     }
@@ -446,10 +404,8 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
     if (useMockData) {
       setGoals((prev) => [...prev, { id: `g${Date.now()}`, ...newGoal, monthly_target: 0 }]);
     } else {
-      try {
-        await supabase.from('goals').insert(newGoal);
-        await loadData();
-      } catch (error: any) { alert(`Erro: ${error.message}`); return; }
+      try { await supabase.from('goals').insert(newGoal); await loadData(); } 
+      catch (error: any) { alert(`Erro: ${error.message}`); return; }
     }
     setFormData({ ...formData, goal_title: '', goal_target: '', goal_end: '' });
     setIsDrawerOpen(false);
@@ -459,189 +415,111 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
     if (useMockData) { setTransactions((prev) => prev.map((t) => t.id === id ? { ...t, status: 'realized' } : t)); return; }
     try { await supabase.from('transactions').update({ status: 'realized' }).eq('id', id); await loadData(); } catch (error) { console.error(error); }
   };
-  // ===== EDITAR LANÇAMENTO =====
+
   const handleEditTransaction = (transaction: any) => {
     setEditingTransaction(transaction);
     setFormData({
-      created_by: transaction.created_by,
-      type: transaction.type,
-      category_id: transaction.category_id,
-      amount: transaction.amount,
-      date: transaction.date,
-      description: transaction.description || '',
-      status: transaction.status,
-      is_unexpected: transaction.is_unexpected || false,
-      is_recurring: transaction.is_recurring || false,
-      recurring_day: transaction.recurring_day || '',
-      recurring_end_date: '',
-      goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
+      created_by: transaction.created_by, type: transaction.type, category_id: transaction.category_id,
+      amount: transaction.amount, date: transaction.date, description: transaction.description || '',
+      status: transaction.status, is_unexpected: transaction.is_unexpected || false,
+      is_recurring: transaction.is_recurring || false, recurring_day: transaction.recurring_day || '',
+      recurring_end_date: '', goal_title: '', goal_target: '', goal_start: new Date().toISOString().slice(0, 10), goal_end: '',
     });
     setIsDrawerOpen(true);
   };
 
-  // ===== EXCLUIR LANÇAMENTO =====
   const handleDeleteTransaction = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
-    if (useMockData) {
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
-      return;
-    }
-    try {
-      await supabase.from('transactions').delete().eq('id', id);
-      await loadData();
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-      alert('Erro ao excluir lançamento');
-    }
+    if (useMockData) { setTransactions((prev) => prev.filter((t) => t.id !== id)); return; }
+    try { await supabase.from('transactions').delete().eq('id', id); await loadData(); } 
+    catch (error) { console.error('Erro ao excluir:', error); alert('Erro ao excluir lançamento'); }
   };
 
-  // ===== SALVAR EDIÇÃO =====
   const handleUpdateTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
     if (useMockData) {
-      setTransactions((prev) => prev.map((t) =>
-        t.id === editingTransaction.id ? { ...t, ...formData, amount: parseFloat(formData.amount) } : t
-      ));
-      setEditingTransaction(null);
-      setIsDrawerOpen(false);
-      return;
+      setTransactions((prev) => prev.map((t) => t.id === editingTransaction.id ? { ...t, ...formData, amount: parseFloat(formData.amount) } : t));
+      setEditingTransaction(null); setIsDrawerOpen(false); return;
     }
     try {
       await supabase.from('transactions').update({
-        created_by: formData.created_by,
-        date: formData.date,
-        amount: parseFloat(formData.amount),
-        type: formData.type,
-        category_id: formData.category_id,
-        status: formData.status,
-        is_unexpected: formData.is_unexpected,
-        description: formData.description,
-        is_recurring: formData.is_recurring || false,
-        recurring_day: formData.recurring_day || null,
+        created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount),
+        type: formData.type, category_id: formData.category_id, status: formData.status,
+        is_unexpected: formData.is_unexpected, description: formData.description,
+        is_recurring: formData.is_recurring || false, recurring_day: formData.recurring_day || null,
       }).eq('id', editingTransaction.id);
-      await loadData();
-      setEditingTransaction(null);
-      setIsDrawerOpen(false);
-    } catch (error: any) {
-      alert(`Erro ao editar: ${error?.message}`);
-    }
+      await loadData(); setEditingTransaction(null); setIsDrawerOpen(false);
+    } catch (error: any) { alert(`Erro ao editar: ${error?.message}`); }
   };
 
-  // ===== CRIAR RECORRÊNCIA =====
   const handleCreateRecurring = async (e: any) => {
     e.preventDefault();
-    if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
-    if (!formData.recurring_day) { alert('Informe o dia do mês!'); return; }
+    if (!formData.category_id || !formData.recurring_day) { alert('Preencha categoria e dia do mês!'); return; }
     const template = {
-      created_by: formData.created_by,
-      type: formData.type,
-      category_id: formData.category_id,
-      amount: parseFloat(formData.amount),
-      description: formData.description,
-      day_of_month: parseInt(formData.recurring_day),
-      end_date: formData.recurring_end_date || null,
-      is_active: true,
+      created_by: formData.created_by, type: formData.type, category_id: formData.category_id,
+      amount: parseFloat(formData.amount), description: formData.description,
+      day_of_month: parseInt(formData.recurring_day), end_date: formData.recurring_end_date || null, is_active: true,
     };
     if (useMockData) {
       setRecurringTemplates((prev) => [...prev, { id: `r${Date.now()}`, ...template }]);
-      setIsDrawerOpen(false);
-      return;
+      setIsDrawerOpen(false); return;
     }
     try {
       await supabase.from('recurring_templates').insert(template);
       await supabase.from('transactions').insert({
-        created_by: formData.created_by,
-        date: `${selectedMonth}-${String(formData.recurring_day).padStart(2, '0')}`,
-        amount: parseFloat(formData.amount),
-        type: formData.type,
-        category_id: formData.category_id,
-        status: 'projected',
-        is_unexpected: false,
-        description: formData.description,
-        is_recurring: true,
-        recurring_day: parseInt(formData.recurring_day),
+        created_by: formData.created_by, date: `${selectedMonth}-${String(formData.recurring_day).padStart(2, '0')}`,
+        amount: parseFloat(formData.amount), type: formData.type, category_id: formData.category_id,
+        status: 'projected', is_unexpected: false, description: formData.description,
+        is_recurring: true, recurring_day: parseInt(formData.recurring_day),
       });
-      await loadData();
-      setIsDrawerOpen(false);
+      await loadData(); setIsDrawerOpen(false);
       alert('Recorrência criada! O lançamento será gerado automaticamente todo mês.');
-    } catch (error: any) {
-      alert(`Erro ao criar recorrência: ${error?.message}`);
-    }
+    } catch (error: any) { alert(`Erro ao criar recorrência: ${error?.message}`); }
   };
 
-  // ===== GERAR RECORRÊNCIAS DO MÊS =====
   const generateRecurringForMonth = async () => {
     if (useMockData) return;
     try {
       const { data: templates } = await supabase.from('recurring_templates').select('*').eq('is_active', true);
       if (!templates || templates.length === 0) return;
-      const year = selectedMonth.split('-')[0];
-      const month = selectedMonth.split('-')[1];
+      const [year, month] = selectedMonth.split('-');
       for (const template of templates) {
-        const dayStr = String(template.day_of_month).padStart(2, '0');
-        const dateStr = `${year}-${month}-${dayStr}`;
-        const { data: existing } = await supabase.from('transactions').select('id').eq('date', dateStr).eq('category_id', template.category_id).eq('is_recurring', true).limit(1);
+        const dateStr = `${year}-${month}-${String(template.day_of_month).padStart(2, '0')}`;
+        const { data: existing } = await supabase.from('transactions').select('id')
+          .eq('date', dateStr).eq('category_id', template.category_id).eq('is_recurring', true).limit(1);
         if (!existing || existing.length === 0) {
           await supabase.from('transactions').insert({
-            created_by: template.created_by,
-            date: dateStr,
-            amount: template.amount,
-            type: template.type,
-            category_id: template.category_id,
-            status: 'projected',
-            is_unexpected: false,
-            description: template.description,
-            is_recurring: true,
-            recurring_day: template.day_of_month,
+            created_by: template.created_by, date: dateStr, amount: template.amount,
+            type: template.type, category_id: template.category_id, status: 'projected',
+            is_unexpected: false, description: template.description,
+            is_recurring: true, recurring_day: template.day_of_month,
           });
         }
       }
       await loadData();
-    } catch (error) {
-      console.error('Erro ao gerar recorrências:', error);
-    }
+    } catch (error) { console.error('Erro ao gerar recorrências:', error); }
   };
-  
-  
 
-  // ===== FUNÇÃO PARA BUSCAR NOTÍCIAS (ADICIONE AQUI) =====
   const fetchNews = async (source: string = 'all') => {
     try {
       setNewsLoading(true);
       const response = await fetch(`/api/news?source=${source}`);
       if (!response.ok) throw new Error('Failed to fetch news');
-      const data = await response.json();
-      setNews(data);
-    } catch (error) {
-      console.error('Erro ao buscar notícias:', error);
-    } finally {
-      setNewsLoading(false);
-    }
+      setNews(await response.json());
+    } catch (error) { console.error('Erro ao buscar notícias:', error); } 
+    finally { setNewsLoading(false); }
   };
 
-  useEffect(() => {
-    if (activeTab === 'news') {
-      fetchNews(newsSource);
-    }
-  }, [activeTab, newsSource]);
+  useEffect(() => { if (activeTab === 'news') fetchNews(newsSource); }, [activeTab, newsSource]);
 
   const availableCategories = categories.filter((c) => c.type === formData.type);
 
   if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#A9823A]"></div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#A9823A]"></div></div>;
 
   return (
     <div className="min-h-screen bg-[#F7F5F0] pb-24 font-body">
-      
-      {/* Notificações Flutuantes */}
       {notifications.length > 0 && (
         <div className="fixed top-20 right-4 z-50 space-y-2 max-w-xs">
           {notifications.map((notif) => (
@@ -657,10 +535,7 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-[#0B1F33] rounded-lg flex items-center justify-center"><Wallet className="w-5 h-5 text-[#C5A45A]" /></div>
-              <div>
-                <h1 className="font-display text-xl font-bold text-[#0B1F33]">Finanças do Casal</h1>
-                <p className="text-xs text-[#707780]">Olá, {currentUser}! 👋</p>
-              </div>
+              <div><h1 className="font-display text-xl font-bold text-[#0B1F33]">Finanças do Casal</h1><p className="text-xs text-[#707780]">Olá, {currentUser}! 👋</p></div>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-[#0B1F33]/10">
@@ -691,12 +566,9 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {[
-              { id: 'dashboard', label: 'Início', icon: Wallet }, 
-              { id: 'flow', label: 'Fluxo', icon: BarChart3 }, 
-              { id: 'health', label: 'Saúde', icon: Activity }, 
-              { id: 'goals', label: 'Metas', icon: Target }, 
-              { id: 'investments', label: 'Investimentos', icon: Briefcase }, 
-              { id: 'patrimony', label: 'Patrimônio', icon: PiggyBank },
+              { id: 'dashboard', label: 'Início', icon: Wallet }, { id: 'flow', label: 'Fluxo', icon: BarChart3 },
+              { id: 'health', label: 'Saúde', icon: Activity }, { id: 'goals', label: 'Metas', icon: Target },
+              { id: 'investments', label: 'Investimentos', icon: Briefcase }, { id: 'patrimony', label: 'Patrimônio', icon: PiggyBank },
               { id: 'news', label: 'Notícias', icon: Newspaper }
             ].map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id ? 'bg-[#0B1F33] text-white shadow-md' : 'bg-white text-[#707780] hover:bg-[#0B1F33]/5 border border-[#0B1F33]/5'}`}>
@@ -706,7 +578,9 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           </div>
         </div>
       </header>
-  <MarketTicker />
+      
+      <MarketTicker />
+      
       <main className="max-w-5xl mx-auto p-6 space-y-6 animate-fade-in">
         
         {/* DASHBOARD */}
@@ -767,7 +641,7 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
               </div>
               {filteredTransactions.length === 0 ? <p className="text-center text-[#707780] py-8 text-sm">Nenhum lançamento neste mês.</p> : (
                 <div className="space-y-3">
-                                   {filteredTransactions.map((t) => {
+                  {filteredTransactions.map((t) => {
                     const cat = categories.find(c => c.id === t.category_id);
                     return (
                       <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg group">
@@ -788,7 +662,7 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
                           {t.status === 'projected' && (
                             <button onClick={() => confirmTransaction(t.id)} className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33] hover:bg-[#0B1F33]/5">Efetivar</button>
                           )}
-                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors " title="Editar">
+                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors" title="Editar">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#0B1F33]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                           </button>
                           <button onClick={() => handleDeleteTransaction(t.id)} className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors" title="Excluir">
@@ -838,8 +712,8 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
               <h3 className="font-display font-bold text-[#0B1F33] mb-4">Análise de Tendência</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-[#2F6B57]/5 rounded-lg border border-[#2F6B57]/20"><p className="text-sm text-[#707780] mb-1">Receitas</p><p className={`text-lg font-bold font-display ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.incomeChange >= 0 ? '↗' : '↘'} {flowMetrics.incomeChange >= 0 ? 'Crescendo' : 'Diminuindo'}</p><p className="text-xs text-[#707780] mt-1">{flowMetrics.incomeChange >= 0 ? 'Receitas em alta!' : 'Atenção: receitas em queda'}</p></div>
-                <div className="p-4 bg-[#A94B4B]/5 rounded-lg border border-[#A94B4B]/20"><p className="text-sm text-[#707780] mb-1">Despesas</p><p className={`text-lg font-bold font-display ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.expensesChange <= 0 ? '↘' : '↗'} {flowMetrics.expensesChange <= 0 ? 'Controladas' : 'Aumentando'}</p><p className="text-xs text-[#707780] mt-1">{flowMetrics.expensesChange <= 0 ? 'Ótimo controle!' : 'Revisar gastos'}</p></div>
-                <div className="p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20"><p className="text-sm text-[#707780] mb-1">Aportes</p><p className={`text-lg font-bold font-display ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.contributionsChange >= 0 ? '↗' : '↘'} {flowMetrics.contributionsChange >= 0 ? 'Aumentando' : 'Diminuindo'}</p><p className="text-xs text-[#707780] mt-1">{flowMetrics.contributionsChange >= 0 ? 'Investimentos crescendo!' : 'Aumentar aportes'}</p></div>
+                <div className="p-4 bg-[#A94B4B]/5 rounded-lg border border-[#A94B4B]/20"><p className="text-sm text-[#707780] mb-1">Despesas</p><p className={`text-lg font-bold font-display ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.expensesChange <= 0 ? '↘' : ''} {flowMetrics.expensesChange <= 0 ? 'Controladas' : 'Aumentando'}</p><p className="text-xs text-[#707780] mt-1">{flowMetrics.expensesChange <= 0 ? 'Ótimo controle!' : 'Revisar gastos'}</p></div>
+                <div className="p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20"><p className="text-sm text-[#707780] mb-1">Aportes</p><p className={`text-lg font-bold font-display ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.contributionsChange >= 0 ? '↗' : ''} {flowMetrics.contributionsChange >= 0 ? 'Aumentando' : 'Diminuindo'}</p><p className="text-xs text-[#707780] mt-1">{flowMetrics.contributionsChange >= 0 ? 'Investimentos crescendo!' : 'Aumentar aportes'}</p></div>
               </div>
             </Card>
           </div>
@@ -850,7 +724,7 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           <div className="space-y-6">
             <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Activity className="text-[#A9823A]"/> Saúde Financeira</h2>
             <Card className={`p-6 text-center ${healthMetrics.healthStatus === 'green' ? 'bg-[#2F6B57]/5 border-[#2F6B57]/20' : healthMetrics.healthStatus === 'yellow' ? 'bg-[#B8860B]/5 border-[#B8860B]/20' : 'bg-[#A94B4B]/5 border-[#A94B4B]/20'}`}>
-              <p className="text-4xl mb-2">{healthMetrics.healthStatus === 'green' ? '🟢' : healthMetrics.healthStatus === 'yellow' ? '🟡' : '🔴'}</p>
+              <p className="text-4xl mb-2">{healthMetrics.healthStatus === 'green' ? '🟢' : healthMetrics.healthStatus === 'yellow' ? '' : '🔴'}</p>
               <h3 className="text-2xl font-bold font-display text-[#0B1F33]">{healthMetrics.healthLabel}</h3>
               <p className="text-[#707780] mt-1">Score: {healthMetrics.healthScore}/100</p>
             </Card>
@@ -869,11 +743,10 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           </div>
         )}
 
-        {/* METAS (CORRIGIDO) */}
+        {/* METAS */}
         {activeTab === 'goals' && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-6"><Target className="w-6 h-6 text-[#A9823A]" /><h2 className="font-display text-2xl font-bold text-[#0B1F33]">Nossos Sonhos & Objetivos</h2></div>
-            
             {goalsWithProgress.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center py-20 bg-white rounded-xl border border-dashed border-[#0B1F33]/20">
                 <Target className="w-16 h-16 text-[#0B1F33]/10 mb-4" />
@@ -929,21 +802,41 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
           </div>
         )}
 
-        {/* INVESTIMENTOS */}
+        {/* INVESTIMENTOS - CORRIGIDO */}
         {activeTab === 'investments' && (
           <div className="space-y-4">
             <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Briefcase className="text-[#A9823A]"/> Investimentos</h2>
             <Card className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-[#0B1F33]/5 p-5 rounded-lg"><p className="text-sm text-[#707780]">Total Aportado</p><p className="text-3xl font-bold text-[#0B1F33] mt-2 font-display">{formatBRL(metrics.totalAportes)}</p></div>
-                <div className="bg-[#A9823A]/5 p-5 rounded-lg"><p className="text-sm text-[#707780]">Rendimentos</p><p className="text-3xl font-bold text-[#A9823A] mt-2 font-display">{formatBRL(metrics.totalAportes * 0.0644)}</p><p className="text-xs text-[#A9823A] mt-2 font-medium">+6,44% de rentabilidade</p></div>
+                <div className="bg-[#0B1F33]/5 p-5 rounded-lg">
+                  <p className="text-sm text-[#707780]">Total Aportado</p>
+                  <p className="text-3xl font-bold text-[#0B1F33] mt-2 font-display">{formatBRL(metrics.totalAportes)}</p>
+                </div>
+                <div className="bg-[#A9823A]/5 p-5 rounded-lg">
+                  <p className="text-sm text-[#707780]">Rendimentos</p>
+                  <p className="text-3xl font-bold text-[#A9823A] mt-2 font-display">{formatBRL(metrics.monthlyYield || 0)}</p>
+                  <p className="text-xs text-[#A9823A] mt-2 font-medium">
+                    {metrics.totalAportes > 0 
+                      ? `+${((metrics.monthlyYield || 0) / metrics.totalAportes * 100).toFixed(2)}% de rentabilidade` 
+                      : 'Sem aportes no mês'}
+                  </p>
+                </div>
               </div>
               <h3 className="font-display font-bold text-[#0B1F33] mb-3">Distribuição</h3>
               <div className="space-y-2">
-                {[{ name: 'Ações', value: metrics.investmentTotals.acoes, color: 'bg-[#0B1F33]' }, { name: 'FIIs', value: metrics.investmentTotals.fiis, color: 'bg-[#A9823A]' }, { name: 'Dólar', value: metrics.investmentTotals.dolar, color: 'bg-[#2F6B57]', isUSD: true }].map((item) => (
+                {[
+                  { name: 'Ações', value: metrics.investmentTotals.acoes, color: 'bg-[#0B1F33]' }, 
+                  { name: 'FIIs', value: metrics.investmentTotals.fiis, color: 'bg-[#A9823A]' }, 
+                  { name: 'Dólar', value: metrics.investmentTotals.dolar, color: 'bg-[#2F6B57]', isUSD: true }
+                ].map((item) => (
                   <div key={item.name} className="flex justify-between items-center p-3 bg-[#F7F5F0] rounded-lg">
-                    <div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${item.color}`}></div><span className="text-sm font-medium text-[#0B1F33]">{item.name}</span></div>
-                    <span className="font-bold text-[#0B1F33] font-display">{item.isUSD ? formatUSD(item.value) : formatBRL(item.value)}</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${item.color}`}></div>
+                      <span className="text-sm font-medium text-[#0B1F33]">{item.name}</span>
+                    </div>
+                    <span className="font-bold text-[#0B1F33] font-display">
+                      {item.isUSD ? formatUSD(item.value) : formatBRL(item.value)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -1009,62 +902,35 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
             </div>
           </div>
         )}
-                {/* ===== ABA NOTÍCIAS ===== */}
+
+        {/* NOTÍCIAS */}
         {activeTab === 'news' && (
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-2">
               <Newspaper className="w-6 h-6 text-[#A9823A]" />
               <h2 className="font-display text-2xl font-bold text-[#0B1F33]">Notícias do Mercado</h2>
             </div>
-
-            {/* Filtros por Fonte */}
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                         {[
-              { id: 'all', label: 'Todas' },
-              { id: 'infomoney', label: 'InfoMoney' },
-              { id: 'investing', label: 'Investing.com' },
-              { id: 'investopedia', label: 'Investopedia' },
-              { id: 'valor', label: 'Valor Econômico' },
-              { id: 'moneytimes', label: 'Money Times' },
-            ].map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setNewsSource(filter.id as any)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                    newsSource === filter.id
-                      ? 'bg-[#0B1F33] text-white shadow-md'
-                      : 'bg-white text-[#707780] hover:bg-[#0B1F33]/5 border border-[#0B1F33]/10'
-                  }`}
-                >
+              {[
+                { id: 'all', label: 'Todas' }, { id: 'infomoney', label: 'InfoMoney' },
+                { id: 'investing', label: 'Investing.com' }, { id: 'investopedia', label: 'Investopedia' },
+                { id: 'valor', label: 'Valor Econômico' }, { id: 'moneytimes', label: 'Money Times' },
+              ].map((filter) => (
+                <button key={filter.id} onClick={() => setNewsSource(filter.id as any)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${newsSource === filter.id ? 'bg-[#0B1F33] text-white shadow-md' : 'bg-white text-[#707780] hover:bg-[#0B1F33]/5 border border-[#0B1F33]/10'}`}>
                   {filter.label}
                 </button>
               ))}
             </div>
-
-            {/* Grid de Notícias */}
             {newsLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <NewsCardSkeleton key={i} />
-                ))}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[...Array(6)].map((_, i) => (<NewsCardSkeleton key={i} />))}</div>
             ) : news.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-xl border border-dashed border-[#0B1F33]/20">
                 <Newspaper className="w-16 h-16 text-[#0B1F33]/10 mx-auto mb-4" />
                 <p className="text-[#707780] text-lg">Nenhuma notícia encontrada</p>
-                <button 
-                  onClick={() => fetchNews(newsSource)}
-                  className="mt-4 text-[#A9823A] font-medium hover:underline"
-                >
-                  Tentar novamente
-                </button>
+                <button onClick={() => fetchNews(newsSource)} className="mt-4 text-[#A9823A] font-medium hover:underline">Tentar novamente</button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {news.map((item) => (
-                  <NewsCard key={item.id} news={item} />
-                ))}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{news.map((item) => (<NewsCard key={item.id} news={item} />))}</div>
             )}
           </div>
         )}
@@ -1074,20 +940,20 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
         <Plus className="w-8 h-8" />
       </button>
 
-      {/* DRAWER CONDICIONAL CORRIGIDO */}
+      {/* DRAWER */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-[#0B1F33]/50 backdrop-blur-sm flex justify-end" onClick={() => setIsDrawerOpen(false)}>
           <div className="w-full max-w-md bg-white h-full shadow-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white flex items-center justify-between border-b border-[#0B1F33]/10 p-4 z-10">
               <h2 className="font-display text-lg font-bold text-[#0B1F33]">
-  {activeTab === 'goals' ? 'Nova Meta / Sonho' : editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
-</h2>
+                {activeTab === 'goals' ? 'Nova Meta / Sonho' : editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
+              </h2>
               <button onClick={() => setIsDrawerOpen(false)} className="p-1 hover:bg-[#F7F5F0] rounded"><X className="w-5 h-5 text-[#707780]" /></button>
             </div>
             
             <div className="p-6">
               {activeTab === 'goals' ? (
-                <form onSubmit={editingTransaction ? handleUpdateTransaction : handleAddTransaction} className="space-y-5">
+                <form onSubmit={handleAddGoal} className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-[#0B1F33]">Nome do Sonho / Meta</label>
                     <input type="text" required value={formData.goal_title} onChange={(e) => setFormData({ ...formData, goal_title: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A]" placeholder="Ex: Nossa Casa, Viagem Europa" />
@@ -1141,73 +1007,28 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <label className="text-sm font-medium text-[#0B1F33]">Descrição</label>
-                      <button 
-                        type="button"
-                        onClick={startVoiceRecognition}
-                        disabled={isListening}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          isListening 
-                            ? 'bg-red-100 text-red-600 animate-pulse border border-red-200' 
-                            : 'bg-[#A9823A]/10 text-[#A9823A] hover:bg-[#A9823A]/20 border border-[#A9823A]/20'
-                        }`}
-                      >
-                        {isListening ? (
-                          <>
-                            <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-                            Ouvindo...
-                          </>
-                        ) : (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                            Falar
-                          </>
-                        )}
+                      <button type="button" onClick={startVoiceRecognition} disabled={isListening} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isListening ? 'bg-red-100 text-red-600 animate-pulse border border-red-200' : 'bg-[#A9823A]/10 text-[#A9823A] hover:bg-[#A9823A]/20 border border-[#A9823A]/20'}`}>
+                        {isListening ? (<><span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>Ouvindo...</>) : (<><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>Falar</>)}
                       </button>
                     </div>
-                    <input 
-                      type="text" 
-                      value={formData.description} 
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-                      className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A] transition-colors" 
-                      placeholder="Ex: Compras do mês ou clique em 'Falar'" 
-                    />
-                    {voiceTranscript && (
-                      <p className="text-xs text-[#707780] italic bg-[#F7F5F0] p-2 rounded border border-dashed border-[#0B1F33]/10">
-                         "{voiceTranscript}"
-                      </p>
-                    )}
+                    <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A] transition-colors" placeholder="Ex: Compras do mês ou clique em 'Falar'" />
+                    {voiceTranscript && (<p className="text-xs text-[#707780] italic bg-[#F7F5F0] p-2 rounded border border-dashed border-[#0B1F33]/10">"{voiceTranscript}"</p>)}
                   </div>
-                                   {/*                   {/* Campos de Recorrência */}
+                  
                   <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={formData.is_recurring || false}
-                        onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
-                        className="w-4 h-4 rounded border-[#0B1F33]/20 text-[#A9823A] focus:ring-[#A9823A]"
-                      />
+                      <input type="checkbox" checked={formData.is_recurring || false} onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })} className="w-4 h-4 rounded border-[#0B1F33]/20 text-[#A9823A] focus:ring-[#A9823A]" />
                       <span className="text-sm font-medium text-[#0B1F33]">🔄 Lançamento recorrente</span>
                     </label>
                     {formData.is_recurring && (
                       <div className="grid grid-cols-2 gap-3 mt-2">
                         <div>
                           <label className="text-xs text-[#707780] block mb-1">Dia do mês</label>
-                          <input 
-                            type="number" min="1" max="31" 
-                            value={formData.recurring_day || ''} 
-                            onChange={(e) => setFormData({ ...formData, recurring_day: e.target.value })} 
-                            className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" 
-                            placeholder="Ex: 10" 
-                          />
+                          <input type="number" min="1" max="31" value={formData.recurring_day || ''} onChange={(e) => setFormData({ ...formData, recurring_day: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" placeholder="Ex: 10" />
                         </div>
                         <div>
                           <label className="text-xs text-[#707780] block mb-1">Até quando?</label>
-                          <input 
-                            type="date" 
-                            value={formData.recurring_end_date || ''} 
-                            onChange={(e) => setFormData({ ...formData, recurring_end_date: e.target.value })} 
-                            className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" 
-                          />
+                          <input type="date" value={formData.recurring_end_date || ''} onChange={(e) => setFormData({ ...formData, recurring_end_date: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-3 py-2 text-sm bg-white" />
                         </div>
                       </div>
                     )}
@@ -1215,35 +1036,13 @@ const yieldPercent = totalAportes > 0 ? (monthlyYield / totalAportes) * 100 : 0;
 
                   {editingTransaction ? (
                     <div className="flex gap-3 mt-6">
-                      <button 
-                        type="button" 
-                        onClick={() => { setEditingTransaction(null); setIsDrawerOpen(false); }} 
-                        className="flex-1 bg-[#F7F5F0] text-[#0B1F33] font-semibold py-4 rounded-lg transition-colors border border-[#0B1F33]/10"
-                      >
-                        Cancelar
-                      </button>
-                      <button 
-                        type="submit" 
-                        className="flex-1 bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors shadow-lg"
-                      >
-                        Salvar Alterações
-                      </button>
+                      <button type="button" onClick={() => { setEditingTransaction(null); setIsDrawerOpen(false); }} className="flex-1 bg-[#F7F5F0] text-[#0B1F33] font-semibold py-4 rounded-lg transition-colors border border-[#0B1F33]/10">Cancelar</button>
+                      <button type="submit" className="flex-1 bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors shadow-lg">Salvar Alterações</button>
                     </div>
                   ) : formData.is_recurring ? (
-                    <button 
-                      type="button" 
-                      onClick={handleCreateRecurring} 
-                      className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg"
-                    >
-                      🔄 Criar Recorrência
-                    </button>
+                    <button type="button" onClick={handleCreateRecurring} className="w-full bg-[#A9823A] hover:bg-[#8c6b2e] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg">🔄 Criar Recorrência</button>
                   ) : (
-                    <button 
-                      type="submit" 
-                      className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg"
-                    >
-                      Salvar Lançamento
-                    </button>
+                    <button type="submit" className="w-full bg-[#0B1F33] hover:bg-[#172a3d] text-white font-semibold py-4 rounded-lg transition-colors mt-6 shadow-lg">Salvar Lançamento</button>
                   )}
                 </form>
               )}
