@@ -215,7 +215,9 @@ export default function FinanceDashboard() {
   const metrics = useMemo(() => {
     const realizedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
     const projectedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'projected').reduce((sum, t) => sum + Number(t.amount), 0);
-    const realizedExpenses = monthlyTransactions.filter((t) => (t.type === 'despesa_fixa' || t.type === 'despesa_variavel') && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
+const realizedExpenses = monthlyTransactions.filter((t) => 
+  (t.type === 'despesa_fixa' || t.type === 'despesa_variavel' || t.type === 'reserva') && t.status === 'realized'
+).reduce((sum, t) => sum + Number(t.amount), 0);
     const unexpectedExpenses = monthlyTransactions.filter((t) => t.is_unexpected && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
     
     const investments = monthlyTransactions.filter((t) => t.type === 'investimento' && t.status === 'realized');
