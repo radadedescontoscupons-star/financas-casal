@@ -30,7 +30,36 @@ export default function MarketTicker() {
       const response = await fetch('/api/quotes');
       if (!response.ok) throw new Error('Failed');
       const data = await response.json();
-      setQuotes(data);
+      
+      // Transforma o formato { moedas, acoes, indices } em array único
+      const allQuotes: Quote[] = [
+        ...(data.moedas || []).map((m: any) => ({
+          ticker: m.symbol,
+          name: m.name,
+          price: m.price,
+          change: m.change,
+          changePercent: m.change,
+          category: 'currency' as const,
+        })),
+        ...(data.acoes || []).map((a: any) => ({
+          ticker: a.symbol,
+          name: a.name,
+          price: a.price,
+          change: a.change,
+          changePercent: a.change,
+          category: 'br' as const,
+        })),
+        ...(data.indices || []).map((i: any) => ({
+          ticker: i.symbol,
+          name: i.name,
+          price: i.price,
+          change: i.change,
+          changePercent: i.change,
+          category: 'index' as const,
+        })),
+      ];
+      
+      setQuotes(allQuotes);
     } catch (err) {
       console.error('Erro cotações:', err);
     } finally {
@@ -40,7 +69,7 @@ export default function MarketTicker() {
 
   useEffect(() => {
     fetchQuotes();
-    const interval = setInterval(fetchQuotes, 60 * 1000);
+    const interval = setInterval(fetchQuotes, 60 * 1000); // Atualiza a cada minuto
     return () => clearInterval(interval);
   }, []);
 
