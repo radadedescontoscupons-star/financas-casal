@@ -190,7 +190,36 @@ const generateRecurringForMonth = async () => {
       await loadData();
     } catch (error) { console.error('Erro ao gerar recorrências:', error); }
   };
-const generateCashFlowHistory = async () => {
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
+      if (catsError) {
+        setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
+        setGoalContributions([]); setAssets([]); setLiabilities([]);
+        setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
+      } else {
+       setCategories(catsData || []);
+        const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
+        const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
+        const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
+        const { data: contributionsData } = await supabase.from('goal_contributions').select('*'); setGoalContributions(contributionsData || []);
+        const { data: assetsData } = await supabase.from('assets').select('*'); setAssets(assetsData || []);
+        const { data: liabilitiesData } = await supabase.from('liabilities').select('*'); setLiabilities(liabilitiesData || []);
+        const { data: historyData } = await supabase.from('patrimony_history').select('*').order('month', { ascending: true }); setPatrimonyHistory(historyData || []);
+        const { data: cashFlowData } = await supabase.from('cash_flow_history').select('*').order('month', { ascending: true }); setCashFlowHistory(cashFlowData || []);
+        setUseMockData(false);
+      }
+    } catch (error) {
+      setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
+      setGoalContributions([]); setAssets([]); setLiabilities([]);
+      setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
+    }
+      // ===== GERAR RECORRÊNCIAS DO MÊS =====
+  
+  // ===== GERAR HISTÓRICO DE FLUXO AUTOMATICAMENTE =====
+  const generateCashFlowHistory = async () => {
     if (useMockData) return;
     try {
       const months = [...new Set(transactions.map((t: any) => t.date?.slice(0, 7)).filter(Boolean))].sort();
@@ -235,35 +264,6 @@ const generateCashFlowHistory = async () => {
       console.error('Erro ao gerar histórico de fluxo:', error);
     }
   };
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
-      if (catsError) {
-        setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
-        setGoalContributions([]); setAssets([]); setLiabilities([]);
-        setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
-      } else {
-       setCategories(catsData || []);
-        const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
-        const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
-        const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
-        const { data: contributionsData } = await supabase.from('goal_contributions').select('*'); setGoalContributions(contributionsData || []);
-        const { data: assetsData } = await supabase.from('assets').select('*'); setAssets(assetsData || []);
-        const { data: liabilitiesData } = await supabase.from('liabilities').select('*'); setLiabilities(liabilitiesData || []);
-        const { data: historyData } = await supabase.from('patrimony_history').select('*').order('month', { ascending: true }); setPatrimonyHistory(historyData || []);
-        const { data: cashFlowData } = await supabase.from('cash_flow_history').select('*').order('month', { ascending: true }); setCashFlowHistory(cashFlowData || []);
-        setUseMockData(false);
-      }
-    } catch (error) {
-      setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
-      setGoalContributions([]); setAssets([]); setLiabilities([]);
-      setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
-    }
-      // ===== GERAR RECORRÊNCIAS DO MÊS =====
-  
-  // ===== GERAR HISTÓRICO DE FLUXO AUTOMATICAMENTE =====
-  
     setLoading(false);
     setTimeout(() => generateRecurringForMonth(), 1000);
     setTimeout(() => generateCashFlowHistory(), 1500);
@@ -637,100 +637,202 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
         
         {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Receitas</p><p className="text-2xl font-bold text-[#2F6B57] mt-2 font-display">{formatBRL(metrics.realizedIncome)}</p></Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Despesas</p><p className="text-2xl font-bold text-[#A94B4B] mt-2 font-display">{formatBRL(metrics.realizedExpenses)}</p>{metrics.unexpectedExpenses > 0 && <p className="text-xs text-[#B8860B] mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {formatBRL(metrics.unexpectedExpenses)} imprevistos</p>}</Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Saldo</p><p className={`text-2xl font-bold mt-2 font-display ${metrics.saldo >= 0 ? 'text-[#0B1F33]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldo)}</p></Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Saldo Disponível</p><p className={`text-2xl font-bold mt-2 font-display ${metrics.saldoDisponivel >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldoDisponivel)}</p></Card>
-            </div>
+  <>
+    {/* Cards de Resumo - 4 colunas */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Card className="p-5">
+        <p className="text-xs text-[#707780] font-medium uppercase">Receitas</p>
+        <p className="text-2xl font-bold text-[#2F6B57] mt-2 font-display">{formatBRL(metrics.realizedIncome)}</p>
+      </Card>
+      
+      <Card className="p-5">
+        <p className="text-xs text-[#707780] font-medium uppercase">Despesas</p>
+        <p className="text-2xl font-bold text-[#A94B4B] mt-2 font-display">{formatBRL(metrics.realizedExpenses)}</p>
+        {metrics.unexpectedExpenses > 0 && (
+          <p className="text-xs text-[#B8860B] mt-2 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> {formatBRL(metrics.unexpectedExpenses)} imprevistos
+          </p>
+        )}
+      </Card>
+      
+      <Card className="p-5">
+        <p className="text-xs text-[#707780] font-medium uppercase">Saldo</p>
+        <p className={`text-2xl font-bold mt-2 font-display ${metrics.saldo >= 0 ? 'text-[#0B1F33]' : 'text-[#A94B4B]'}`}>
+          {formatBRL(metrics.saldo)}
+        </p>
+      </Card>
+      
+      <Card className="p-5">
+        <p className="text-xs text-[#707780] font-medium uppercase">Saldo Disponível</p>
+        <p className={`text-2xl font-bold mt-2 font-display ${metrics.saldoDisponivel >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
+          {formatBRL(metrics.saldoDisponivel)}
+        </p>
+      </Card>
+    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Card className="p-5">
-                <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
-                {/* CORREÇÃO: Usa a variável totalAportes que já filtra pelo mês selecionado */}
-                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
-                <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
-              </Card>
-                            <Card className="p-5">
-                <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
-                <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
-                <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
-              </Card>
-            </div>
+    {/* Cards de Investimentos - 2 colunas */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card className="p-5 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('investments')}>
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-5 h-5 text-[#A9823A]" />
+          <h3 className="font-display font-bold text-[#0B1F33]">Aportes do Mês</h3>
+        </div>
+        <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
+        <div className="flex gap-3 mt-4 text-xs text-[#707780]">
+          <span>Ações: {formatBRL(metrics.investmentTotals.acoes)}</span>
+          <span>•</span>
+          <span>FIIs: {formatBRL(metrics.investmentTotals.fiis)}</span>
+          <span>•</span>
+          <span>USD: {formatUSD(metrics.investmentTotals.dolar)}</span>
+        </div>
+        <p className="text-xs text-[#A9823A] mt-3 flex items-center gap-1">
+          <span>Ver detalhes</span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </p>
+      </Card>
 
-            <Card className="p-5">
-              <div className="flex items-center gap-2 mb-4"><AlertTriangle className="w-5 h-5 text-[#0B1F33]" /><h3 className="font-display font-bold text-[#0B1F33]">Tetos de Gastos</h3></div>
-              {budgetStatus.length === 0 ? <p className="text-sm text-[#707780] py-4 text-center">Nenhum teto configurado.</p> : (
-                <div className="space-y-4">
-                  {budgetStatus.map((budget, idx) => (
-                    <div key={idx} className="p-4 rounded-lg bg-[#0B1F33] text-white shadow-sm">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="font-medium text-white text-lg">{budget.category?.name}</span>
-                        <div className="flex items-center gap-3">
-                          {budget.alertBadge && <span className={`badge-premium ${budget.alertLevel === 'ultrapassado' ? 'bg-[#A94B4B] text-white' : budget.alertLevel === 'proximo' ? 'bg-[#B8860B] text-white' : 'bg-[#C5A45A] text-white'}`}>{budget.alertBadge}</span>}
-                          <span className="text-sm text-white/80 font-medium">{formatBRL(budget.spent)} / {formatBRL(budget.limit)}</span>
-                        </div>
-                      </div>
-                      <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden mb-2"><div className="h-full bg-white rounded-full transition-all" style={{ width: `${Math.min(budget.percentage, 100)}%` }} /></div>
-                      <div className="flex justify-between mt-2 text-xs text-white/70">
-                        <span>{budget.percentage.toFixed(0)}% utilizado</span>
-                        <span>{budget.alertLevel !== 'ultrapassado' ? `Restam ${formatBRL(budget.remaining)}` : `Ultrapassou ${formatBRL(budget.spent - budget.limit)}`}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+      <Card className="p-5 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('investments')}>
+        <div className="flex items-center gap-2 mb-3">
+          <Briefcase className="w-5 h-5 text-[#A9823A]" />
+          <h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3>
+        </div>
+        <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
+        <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
+      </Card>
+    </div>
 
-            <Card className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-display font-bold text-[#0B1F33]">Lançamentos</h3>
-                <div className="flex gap-2">
-                  {(['all', 'Felipe', 'Camila'] as const).map((user) => (
-                    <button key={user} onClick={() => setUserFilter(user)} className={`px-3 py-1 rounded-full text-xs font-medium ${userFilter === user ? 'bg-[#0B1F33] text-white' : 'bg-[#F7F5F0] text-[#707780]'}`}>{user === 'all' ? 'Todos' : user}</button>
-                  ))}
+    {/* Tetos de Gastos */}
+    <Card className="p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <AlertTriangle className="w-5 h-5 text-[#0B1F33]" />
+        <h3 className="font-display font-bold text-[#0B1F33]">Tetos de Gastos</h3>
+      </div>
+      {budgetStatus.length === 0 ? (
+        <p className="text-sm text-[#707780] py-4 text-center">Nenhum teto configurado.</p>
+      ) : (
+        <div className="space-y-4">
+          {budgetStatus.map((budget, idx) => (
+            <div key={idx} className="p-4 rounded-lg bg-[#0B1F33] text-white shadow-sm">
+              <div className="flex justify-between items-center mb-3">
+                <span className="font-medium text-white text-lg">{budget.category?.name}</span>
+                <div className="flex items-center gap-3">
+                  {budget.alertBadge && (
+                    <span className={`badge-premium ${
+                      budget.alertLevel === 'ultrapassado' ? 'bg-[#A94B4B] text-white' : 
+                      budget.alertLevel === 'proximo' ? 'bg-[#B8860B] text-white' : 
+                      'bg-[#C5A45A] text-white'
+                    }`}>
+                      {budget.alertBadge}
+                    </span>
+                  )}
+                  <span className="text-sm text-white/80 font-medium">
+                    {formatBRL(budget.spent)} / {formatBRL(budget.limit)}
+                  </span>
                 </div>
               </div>
-              {filteredTransactions.length === 0 ? <p className="text-center text-[#707780] py-8 text-sm">Nenhum lançamento neste mês.</p> : (
-                <div className="space-y-3">
-                  {filteredTransactions.map((t) => {
-                    const cat = categories.find(c => c.id === t.category_id);
-                    return (
-                      <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg group">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${t.created_by === 'Felipe' ? 'bg-[#0B1F33] text-white' : 'bg-[#A9823A] text-white'}`}>{t.created_by[0]}</div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm text-[#0B1F33] truncate">{t.description || cat?.name}</p>
-                              {t.is_recurring && <span className="text-xs bg-[#A9823A]/10 text-[#A9823A] px-1.5 py-0.5 rounded flex-shrink-0">🔄</span>}
-                            </div>
-                            <p className="text-xs text-[#707780]">{formatDateBR(t.date)} • {cat?.name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                          <p className={`font-bold font-display text-sm ${t.type === 'receita' ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>
-                            {t.type === 'receita' ? '+' : '-'} {formatCurrency(Number(t.amount), cat?.name)}
-                          </p>
-                          {t.status === 'projected' && (
-                            <button onClick={() => confirmTransaction(t.id)} className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33] hover:bg-[#0B1F33]/5">Efetivar</button>
-                          )}
-                          <button onClick={() => handleEditTransaction(t)} className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors" title="Editar">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#0B1F33]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          </button>
-                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors" title="Excluir">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#A94B4B]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-          </>
-        )}
+              <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden mb-2">
+                <div className="h-full bg-white rounded-full transition-all" style={{ width: `${Math.min(budget.percentage, 100)}%` }} />
+              </div>
+              <div className="flex justify-between mt-2 text-xs text-white/70">
+                <span>{budget.percentage.toFixed(0)}% utilizado</span>
+                <span>
+                  {budget.alertLevel !== 'ultrapassado' 
+                    ? `Restam ${formatBRL(budget.remaining)}` 
+                    : `Ultrapassou ${formatBRL(budget.spent - budget.limit)}`
+                  }
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
 
+    {/* Lançamentos */}
+    <Card className="p-5">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-display font-bold text-[#0B1F33]">Lançamentos</h3>
+        <div className="flex gap-2">
+          {(['all', 'Felipe', 'Camila'] as const).map((user) => (
+            <button 
+              key={user} 
+              onClick={() => setUserFilter(user)} 
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                userFilter === user ? 'bg-[#0B1F33] text-white' : 'bg-[#F7F5F0] text-[#707780]'
+              }`}
+            >
+              {user === 'all' ? 'Todos' : user}
+            </button>
+          ))}
+        </div>
+      </div>
+      {filteredTransactions.length === 0 ? (
+        <p className="text-center text-[#707780] py-8 text-sm">Nenhum lançamento neste mês.</p>
+      ) : (
+        <div className="space-y-3">
+          {filteredTransactions.map((t) => {
+            const cat = categories.find(c => c.id === t.category_id);
+            return (
+              <div key={t.id} className="flex justify-between items-center p-4 bg-[#F7F5F0] rounded-lg group">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                    t.created_by === 'Felipe' ? 'bg-[#0B1F33] text-white' : 'bg-[#A9823A] text-white'
+                  }`}>
+                    {t.created_by[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm text-[#0B1F33] truncate">{t.description || cat?.name}</p>
+                      {t.is_recurring && (
+                        <span className="text-xs bg-[#A9823A]/10 text-[#A9823A] px-1.5 py-0.5 rounded flex-shrink-0">🔄</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#707780]">{formatDateBR(t.date)} • {cat?.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <p className={`font-bold font-display text-sm ${
+                    t.type === 'receita' ? 'text-[#2F6B57]' : 'text-[#A94B4B]'
+                  }`}>
+                    {t.type === 'receita' ? '+' : '-'} {formatCurrency(Number(t.amount), cat?.name)}
+                  </p>
+                  {t.status === 'projected' && (
+                    <button 
+                      onClick={() => confirmTransaction(t.id)} 
+                      className="text-xs bg-white border border-[#0B1F33]/20 px-2 py-1 rounded text-[#0B1F33] hover:bg-[#0B1F33]/5"
+                    >
+                      Efetivar
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleEditTransaction(t)} 
+                    className="p-1.5 hover:bg-[#0B1F33]/10 rounded-lg transition-colors" 
+                    title="Editar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#0B1F33]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteTransaction(t.id)} 
+                    className="p-1.5 hover:bg-[#A94B4B]/10 rounded-lg transition-colors" 
+                    title="Excluir"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[#A94B4B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  </>
+)}
         {/* FLUXO */}
         {activeTab === 'flow' && (
           <div className="space-y-6">
