@@ -168,7 +168,73 @@ export default function FinanceDashboard() {
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
   };
+const generateRecurringForMonth = async () => {
+    if (useMockData) return;
+    try {
+      const { data: templates } = await supabase.from('recurring_templates').select('*').eq('is_active', true);
+      if (!templates || templates.length === 0) return;
+      const [year, month] = selectedMonth.split('-');
+      for (const template of templates) {
+        const dateStr = `${year}-${month}-${String(template.day_of_month).padStart(2, '0')}`;
+        const { data: existing } = await supabase.from('transactions').select('id')
+          .eq('date', dateStr).eq('category_id', template.category_id).eq('is_recurring', true).limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from('transactions').insert({
+            created_by: template.created_by, date: dateStr, amount: template.amount,
+            type: template.type, category_id: template.category_id, status: 'projected',
+            is_unexpected: false, description: template.description,
+            is_recurring: true, recurring_day: template.day_of_month,
+          });
+        }
+      }
+      await loadData();
+    } catch (error) { console.error('Erro ao gerar recorrências:', error); }
+  };
+const generateCashFlowHistory = async () => {
+    if (useMockData) return;
+    try {
+      const months = [...new Set(transactions.map((t: any) => t.date?.slice(0, 7)).filter(Boolean))].sort();
+      
+      for (const month of months) {
+        const monthTrans = transactions.filter((t: any) => t.date?.startsWith(month));
+        
+        const income = monthTrans
+          .filter((t: any) => t.type === 'receita' && t.status === 'realized')
+          .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+        
+        const expenses = monthTrans
+          .filter((t: any) => (t.type === 'despesa_fixa' || t.type === 'despesa_variavel') && t.status === 'realized')
+          .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+        
+        const contributions = monthTrans
+          .filter((t: any) => t.type === 'investimento' && t.status === 'realized')
+          .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
+        const { data: existing } = await supabase
+          .from('cash_flow_history')
+          .select('id')
+          .eq('month', month)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          await supabase.from('cash_flow_history')
+            .update({ income, expenses, contributions })
+            .eq('month', month);
+        } else {
+          await supabase.from('cash_flow_history')
+            .insert({ month, income, expenses, contributions });
+        }
+      }
+      
+      const { data: historyData } = await supabase
+        .from('cash_flow_history')
+        .select('*')
+        .order('month', { ascending: true });
+      setCashFlowHistory(historyData || []);
+    } catch (error) {
+      console.error('Erro ao gerar histórico de fluxo:', error);
+    }
+  };
   const loadData = async () => {
     setLoading(true);
     try {
@@ -194,8 +260,13 @@ export default function FinanceDashboard() {
       setGoalContributions([]); setAssets([]); setLiabilities([]);
       setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
     }
+      // ===== GERAR RECORRÊNCIAS DO MÊS =====
+  
+  // ===== GERAR HISTÓRICO DE FLUXO AUTOMATICAMENTE =====
+  
     setLoading(false);
     setTimeout(() => generateRecurringForMonth(), 1000);
+    setTimeout(() => generateCashFlowHistory(), 1500);
   };
 
   const monthlyTransactions = transactions.filter(t => 
@@ -480,28 +551,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     } catch (error: any) { alert(`Erro ao criar recorrência: ${error?.message}`); }
   };
 
-  const generateRecurringForMonth = async () => {
-    if (useMockData) return;
-    try {
-      const { data: templates } = await supabase.from('recurring_templates').select('*').eq('is_active', true);
-      if (!templates || templates.length === 0) return;
-      const [year, month] = selectedMonth.split('-');
-      for (const template of templates) {
-        const dateStr = `${year}-${month}-${String(template.day_of_month).padStart(2, '0')}`;
-        const { data: existing } = await supabase.from('transactions').select('id')
-          .eq('date', dateStr).eq('category_id', template.category_id).eq('is_recurring', true).limit(1);
-        if (!existing || existing.length === 0) {
-          await supabase.from('transactions').insert({
-            created_by: template.created_by, date: dateStr, amount: template.amount,
-            type: template.type, category_id: template.category_id, status: 'projected',
-            is_unexpected: false, description: template.description,
-            is_recurring: true, recurring_day: template.day_of_month,
-          });
-        }
-      }
-      await loadData();
-    } catch (error) { console.error('Erro ao gerar recorrências:', error); }
-  };
+  
 
   const fetchNews = async (source: string = 'all') => {
     try {
