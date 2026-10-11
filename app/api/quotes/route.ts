@@ -1,25 +1,27 @@
 import { NextResponse } from 'next/server';
 
-// Cache em memória (dura 5 minutos)
 let cachedData: any = null;
 let cacheTime = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+const CACHE_DURATION = 5 * 60 * 1000;
 
 export async function GET() {
   const now = Date.now();
   
-  // Retorna cache se ainda válido
   if (cachedData && (now - cacheTime) < CACHE_DURATION) {
     return NextResponse.json(cachedData);
   }
 
   try {
-    // ===== 1. MOEDAS E CRIPTO (AwesomeAPI) =====
+    // ===== MOEDAS (AwesomeAPI) =====
+    console.log('🔄 Buscando moedas na AwesomeAPI...');
     const awesomeRes = await fetch(
       'https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL,ETH-BRL',
       { next: { revalidate: 300 } }
     );
+    
+    console.log('📡 Status AwesomeAPI:', awesomeRes.status);
     const awesomeData = await awesomeRes.json();
+    console.log('📦 Dados AwesomeAPI:', JSON.stringify(awesomeData).slice(0, 200));
 
     const moedas = [
       {
@@ -48,7 +50,9 @@ export async function GET() {
       },
     ];
 
-    // ===== 2. AÇÕES BRASILEIRAS (Stooq - gratuito) =====
+    console.log('💱 Moedas processadas:', moedas);
+
+    // ===== AÇÕES (Stooq) =====
     const acoesTickers = [
       { symbol: 'VALE3', stooq: 'VALE3.SA' },
       { symbol: 'ITUB4', stooq: 'ITUB4.SA' },
@@ -64,7 +68,6 @@ export async function GET() {
     ];
 
     const acoes = [];
-    
     for (const ticker of acoesTickers) {
       try {
         const stooqRes = await fetch(
@@ -72,13 +75,11 @@ export async function GET() {
           { next: { revalidate: 300 } }
         );
         const csvText = await stooqRes.text();
-        
-        // Parse do CSV do Stooq
         const lines = csvText.trim().split('\n');
         if (lines.length >= 2) {
           const values = lines[1].split(',');
-          const price = parseFloat(values[6]); // Close price
-          const open = parseFloat(values[3]);  // Open price
+          const price = parseFloat(values[6]);
+          const open = parseFloat(values[3]);
           const change = open > 0 ? ((price - open) / open) * 100 : 0;
           
           if (!isNaN(price) && price > 0) {
@@ -91,14 +92,13 @@ export async function GET() {
           }
         }
       } catch (err) {
-        console.error(`Erro ao buscar ${ticker.symbol}:`, err);
+        console.error(` Erro ${ticker.symbol}:`, err);
       }
     }
 
-    // ===== 3. ÍNDICES (AwesomeAPI não tem, usa Stooq) =====
+    // ===== ÍNDICES =====
     const indicesTickers = [
       { symbol: 'IFIX', stooq: 'ifix11.sa' },
-      { symbol: 'BOVA11', stooq: 'bovv11.sa' },
     ];
 
     const indices = [];
@@ -126,7 +126,7 @@ export async function GET() {
           }
         }
       } catch (err) {
-        console.error(`Erro ao buscar ${ticker.symbol}:`, err);
+        console.error(`❌ Erro ${ticker.symbol}:`, err);
       }
     }
 
@@ -137,22 +137,28 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     };
 
-    // Salva no cache
     cachedData = result;
     cacheTime = now;
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Erro ao buscar cotações:', error);
+    console.error('💥 Erro geral ao buscar cotações:', error);
     
-    // Retorna cache antigo se existir (fallback)
     if (cachedData) {
       return NextResponse.json({ ...cachedData, fallback: true });
     }
     
-    return NextResponse.json(
-      { moedas: [], acoes: [], indices: [], error: 'Falha ao buscar cotações' },
-      { status: 500 }
-    );
+    // Fallback com dados hardcoded para não quebrar a UI
+    return NextResponse.json({
+      moedas: [
+        { symbol: 'USD', name: 'Dólar', price: 5.15, change: 0.5 },
+        { symbol: 'EUR', name: 'Euro', price: 5.60, change: -0.3 },
+        { symbol: 'BTC', name: 'Bitcoin', price: 350000, change: 2.1 },
+        { symbol: 'ETH', name: 'Ethereum', price: 18000, change: 1.5 },
+      ],
+      acoes: [],
+      indices: [],
+      error: 'Usando dados de fallback',
+    });
   }
 }
