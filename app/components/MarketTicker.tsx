@@ -1,23 +1,8 @@
 'use client';
-
 import { useEffect, useState, useRef } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 
-interface Quote {
-  ticker: string;
-  name: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  category: 'br' | 'us' | 'index' | 'currency';
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  index: '📊',
-  currency: '💰',
-  br: '🇧🇷',
-  us: '🇺🇸',
-};
+interface Quote { ticker: string; name: string; price: number; change: number; changePercent: number; category: string; }
 
 export default function MarketTicker() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -27,140 +12,44 @@ export default function MarketTicker() {
   const fetchQuotes = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/quotes');
-      if (!response.ok) throw new Error('Failed');
-      const data = await response.json();
-      
-      // Transforma o formato { moedas, acoes, indices } em array único
-      const allQuotes: Quote[] = [
-        ...(data.moedas || []).map((m: any) => ({
-          ticker: m.symbol,
-          name: m.name,
-          price: m.price,
-          change: m.change,
-          changePercent: m.change,
-          category: 'currency' as const,
-        })),
-        ...(data.acoes || []).map((a: any) => ({
-          ticker: a.symbol,
-          name: a.name,
-          price: a.price,
-          change: a.change,
-          changePercent: a.change,
-          category: 'br' as const,
-        })),
-        ...(data.indices || []).map((i: any) => ({
-          ticker: i.symbol,
-          name: i.name,
-          price: i.price,
-          change: i.change,
-          changePercent: i.change,
-          category: 'index' as const,
-        })),
+      const res = await fetch('/api/quotes');
+      if (!res.ok) throw new Error('fail');
+      const data = await res.json();
+      const all: Quote[] = [
+        ...(data.moedas || []).map((m: any) => ({ ticker: m.symbol, name: m.name, price: m.price, change: m.change, changePercent: m.change, category: 'currency' })),
+        ...(data.acoes || []).map((a: any) => ({ ticker: a.symbol, name: a.name, price: a.price, change: a.change, changePercent: a.change, category: 'br' })),
+        ...(data.indices || []).map((i: any) => ({ ticker: i.symbol, name: i.name, price: i.price, change: i.change, changePercent: i.change, category: 'index' })),
       ];
-      
-      setQuotes(allQuotes);
-    } catch (err) {
-      console.error('Erro cotações:', err);
-    } finally {
-      setLoading(false);
-    }
+      setQuotes(all);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchQuotes();
-    const interval = setInterval(fetchQuotes, 60 * 1000); // Atualiza a cada minuto
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => { fetchQuotes(); const id = setInterval(fetchQuotes, 60000); return () => clearInterval(id); }, []);
 
-  // Animação marquee contínua
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || quotes.length === 0) return;
-
-    let animationId: number;
-    let scrollPos = 0;
-    const speed = 0.5;
-
-    const animate = () => {
-      scrollPos += speed;
-      const halfWidth = el.scrollWidth / 2;
-      if (scrollPos >= halfWidth) scrollPos = 0;
-      el.style.transform = `translateX(-${scrollPos}px)`;
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
+    let aid: number; let pos = 0;
+    const animate = () => { pos += 0.5; if (pos >= el.scrollWidth / 2) pos = 0; el.style.transform = `translateX(-${pos}px)`; aid = requestAnimationFrame(animate); };
+    aid = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(aid);
   }, [quotes]);
 
-  const formatPrice = (price: number, category: string) => {
-    if (category === 'currency') {
-      if (price > 1000) return price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      return price.toFixed(4);
-    }
-    if (price > 1000) return price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return price.toFixed(2);
-  };
+  const fmt = (p: number, c: string) => c === 'currency' ? (p > 1000 ? p.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.toFixed(4)) : (p > 1000 ? p.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.toFixed(2));
 
-  if (loading && quotes.length === 0) {
-    return (
-      <div className="bg-[#0e0e0e] border-b border-white/10 py-2.5 px-4 overflow-hidden">
-        <div className="flex items-center gap-8 animate-pulse">
-          {[...Array(10)].map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className="h-4 w-14 bg-white/20 rounded" />
-              <div className="h-4 w-18 bg-white/20 rounded" />
-              <div className="h-4 w-14 bg-white/20 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading && quotes.length === 0) return <div className="bg-[#0e0e0e] border-b border-white/10 py-2.5 px-4 overflow-hidden"><div className="flex items-center gap-8 animate-pulse">{[...Array(10)].map((_, i) => <div key={i} className="flex items-center gap-2"><div className="h-4 w-14 bg-white/20 rounded" /><div className="h-4 w-18 bg-white/20 rounded" /></div>)}</div></div>;
 
-  const doubledQuotes = [...quotes, ...quotes];
-  let lastCategory = '';
+  const doubled = [...quotes, ...quotes];
+  let lastCat = '';
 
   return (
     <div className="bg-[#0e0e0e] border-b border-white/10 py-2.5 overflow-hidden relative">
       <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#0e0e0e] to-transparent z-10 pointer-events-none" />
       <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#0e0e0e] to-transparent z-10 pointer-events-none" />
-      
-      <div 
-        ref={scrollRef}
-        className="flex items-center gap-6 whitespace-nowrap will-change-transform"
-        style={{ width: 'max-content' }}
-      >
-        {doubledQuotes.map((quote, index) => {
-          const isPositive = quote.changePercent >= 0;
-          const showSeparator = quote.category !== lastCategory;
-          lastCategory = quote.category;
-          
-          return (
-            <div key={`${quote.ticker}-${index}`} className="flex items-center gap-2 text-sm flex-shrink-0">
-              {showSeparator && index > 0 && (
-                <span className="text-white/15 mx-1 text-xs">{CATEGORY_LABELS[quote.category]}</span>
-              )}
-              <span className="font-bold text-white tracking-wide text-xs">{quote.ticker}</span>
-              <span className="text-white/80 font-mono text-xs">{formatPrice(quote.price, quote.category)}</span>
-              <span className={`flex items-center gap-0.5 font-semibold text-xs ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%
-              </span>
-              <span className="text-white/10 mx-1">│</span>
-            </div>
-          );
-        })}
+      <div ref={scrollRef} className="flex items-center gap-6 whitespace-nowrap will-change-transform" style={{ width: 'max-content' }}>
+        {doubled.map((q, i) => { const pos = q.changePercent >= 0; const sep = q.category !== lastCat; lastCat = q.category; return <div key={`${q.ticker}-${i}`} className="flex items-center gap-2 text-sm flex-shrink-0">{sep && i > 0 && <span className="text-white/15 mx-1 text-xs">{q.category === 'index' ? '📊' : q.category === 'currency' ? '💰' : '🇧🇷'}</span>}<span className="font-bold text-white tracking-wide text-xs">{q.ticker}</span><span className="text-white/80 font-mono text-xs">{fmt(q.price, q.category)}</span><span className={`flex items-center gap-0.5 font-semibold text-xs ${pos ? 'text-emerald-400' : 'text-red-400'}`}>{pos ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pos ? '+' : ''}{q.changePercent.toFixed(2)}%</span><span className="text-white/10 mx-1">│</span></div>; })}
       </div>
-
-      <button 
-        onClick={fetchQuotes}
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-[#0e0e0e]/80 hover:bg-white/10 rounded-full transition-colors"
-        title="Atualizar"
-      >
-        <RefreshCw className={`w-3.5 h-3.5 text-white/60 ${loading ? 'animate-spin' : ''}`} />
-      </button>
+      <button onClick={fetchQuotes} className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-[#0e0e0e]/80 hover:bg-white/10 rounded-full"><RefreshCw className={`w-3.5 h-3.5 text-white/60 ${loading ? 'animate-spin' : ''}`} /></button>
     </div>
   );
 }
