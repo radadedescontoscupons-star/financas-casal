@@ -661,11 +661,55 @@ export default function FinanceDashboard() {
         {activeTab === 'dashboard' && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Receitas</p><p className="text-2xl font-bold text-[#2F6B57] mt-2 font-display">{formatBRL(metrics.realizedIncome)}</p></Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Despesas</p><p className="text-2xl font-bold text-[#A94B4B] mt-2 font-display">{formatBRL(metrics.realizedExpenses)}</p>{metrics.unexpectedExpenses > 0 && <p className="text-xs text-[#B8860B] mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {formatBRL(metrics.unexpectedExpenses)} imprevistos</p>}</Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Saldo</p><p className={`text-2xl font-bold mt-2 font-display ${metrics.saldo >= 0 ? 'text-[#0B1F33]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldo)}</p></Card>
-              <Card className="p-5"><p className="text-xs text-[#707780] font-medium uppercase">Saldo Disponível</p><p className={`text-2xl font-bold mt-2 font-display ${metrics.saldoDisponivel >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldoDisponivel)}</p></Card>
-            </div>
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('flow')}
+  >
+    <p className="text-xs text-[#707780] font-medium uppercase">Receitas</p>
+    <p className="text-2xl font-bold text-[#2F6B57] mt-2 font-display">{formatBRL(metrics.realizedIncome)}</p>
+    <p className="text-xs text-[#2F6B57] mt-2 flex items-center gap-1">
+      <span>Ver fluxo</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('flow')}
+  >
+    <p className="text-xs text-[#707780] font-medium uppercase">Despesas</p>
+    <p className="text-2xl font-bold text-[#A94B4B] mt-2 font-display">{formatBRL(metrics.realizedExpenses)}</p>
+    {metrics.unexpectedExpenses > 0 && <p className="text-xs text-[#B8860B] mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {formatBRL(metrics.unexpectedExpenses)} imprevistos</p>}
+    <p className="text-xs text-[#A94B4B] mt-2 flex items-center gap-1">
+      <span>Ver fluxo</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('health')}
+  >
+    <p className="text-xs text-[#707780] font-medium uppercase">Saldo</p>
+    <p className={`text-2xl font-bold mt-2 font-display ${metrics.saldo >= 0 ? 'text-[#0B1F33]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldo)}</p>
+    <p className="text-xs text-[#0B1F33] mt-2 flex items-center gap-1">
+      <span>Ver saúde</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('health')}
+  >
+    <p className="text-xs text-[#707780] font-medium uppercase">Saldo Disponível</p>
+    <p className={`text-2xl font-bold mt-2 font-display ${metrics.saldoDisponivel >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{formatBRL(metrics.saldoDisponivel)}</p>
+    <p className="text-xs text-[#2F6B57] mt-2 flex items-center gap-1">
+      <span>Ver saúde</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+</div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card
@@ -788,11 +832,81 @@ export default function FinanceDashboard() {
           <div className="space-y-6">
             <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><BarChart3 className="text-[#A9823A]" /> Fluxo Financeiro</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-[#2F6B57]" /><p className="text-xs text-[#707780] font-medium uppercase">Receitas</p></div>{flowMetrics.incomeChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}</div><p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.income)}</p><p className={`text-xs mt-1 ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.incomeChange >= 0 ? '+' : ''}{flowMetrics.incomeChange.toFixed(1)}% vs mês anterior</p></Card>
-              <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><TrendingDown className="w-5 h-5 text-[#A94B4B]" /><p className="text-xs text-[#707780] font-medium uppercase">Despesas</p></div>{flowMetrics.expensesChange <= 0 ? <ArrowDownRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowUpRight className="w-4 h-4 text-[#A94B4B]" />}</div><p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.expenses)}</p><p className={`text-xs mt-1 ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.expensesChange >= 0 ? '+' : ''}{flowMetrics.expensesChange.toFixed(1)}% vs mês anterior</p></Card>
-              <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><DollarSign className="w-5 h-5 text-[#A9823A]" /><p className="text-xs text-[#707780] font-medium uppercase">Aportes</p></div>{flowMetrics.contributionsChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}</div><p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.contributions)}</p><p className={`text-xs mt-1 ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.contributionsChange >= 0 ? '+' : ''}{flowMetrics.contributionsChange.toFixed(1)}% vs mês anterior</p></Card>
-              <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><PiggyBank className="w-5 h-5 text-[#0B1F33]" /><p className="text-xs text-[#707780] font-medium uppercase">Saldo</p></div></div><p className={`text-2xl font-bold font-display ${flowMetrics.balance >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{formatBRL(flowMetrics.balance)}</p><p className="text-xs text-[#707780] mt-1">Receitas - Despesas - Aportes</p></Card>
-            </div>
+  <Card 
+    className="p-5" 
+    onClick={() => { setUserFilter('all'); setActiveTab('dashboard'); }}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-[#2F6B57]" />
+        <p className="text-xs text-[#707780] font-medium uppercase">Receitas</p>
+      </div>
+      {flowMetrics.incomeChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}
+    </div>
+    <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.income)}</p>
+    <p className={`text-xs mt-1 ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.incomeChange >= 0 ? '+' : ''}{flowMetrics.incomeChange.toFixed(1)}% vs mês anterior</p>
+    <p className="text-xs text-[#2F6B57] mt-2 flex items-center gap-1">
+      <span>Ver lançamentos</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => { setUserFilter('all'); setActiveTab('dashboard'); }}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2">
+        <TrendingDown className="w-5 h-5 text-[#A94B4B]" />
+        <p className="text-xs text-[#707780] font-medium uppercase">Despesas</p>
+      </div>
+      {flowMetrics.expensesChange <= 0 ? <ArrowDownRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowUpRight className="w-4 h-4 text-[#A94B4B]" />}
+    </div>
+    <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.expenses)}</p>
+    <p className={`text-xs mt-1 ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.expensesChange >= 0 ? '+' : ''}{flowMetrics.expensesChange.toFixed(1)}% vs mês anterior</p>
+    <p className="text-xs text-[#A94B4B] mt-2 flex items-center gap-1">
+      <span>Ver lançamentos</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('investments')}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-5 h-5 text-[#A9823A]" />
+        <p className="text-xs text-[#707780] font-medium uppercase">Aportes</p>
+      </div>
+      {flowMetrics.contributionsChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}
+    </div>
+    <p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.contributions)}</p>
+    <p className={`text-xs mt-1 ${flowMetrics.contributionsChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.contributionsChange >= 0 ? '+' : ''}{flowMetrics.contributionsChange.toFixed(1)}% vs mês anterior</p>
+    <p className="text-xs text-[#A9823A] mt-2 flex items-center gap-1">
+      <span>Ver investimentos</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+
+  <Card 
+    className="p-5" 
+    onClick={() => setActiveTab('patrimony')}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2">
+        <PiggyBank className="w-5 h-5 text-[#0B1F33]" />
+        <p className="text-xs text-[#707780] font-medium uppercase">Saldo</p>
+      </div>
+    </div>
+    <p className={`text-2xl font-bold font-display ${flowMetrics.balance >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{formatBRL(flowMetrics.balance)}</p>
+    <p className="text-xs text-[#707780] mt-1">Receitas - Despesas - Aportes</p>
+    <p className="text-xs text-[#0B1F33] mt-2 flex items-center gap-1">
+      <span>Ver patrimônio</span>
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </p>
+  </Card>
+</div>
             <Card className="p-6">
               <h3 className="font-display font-bold text-[#0B1F33] mb-6">Evolução Mensal (Últimos 6 meses)</h3>
               {flowMetrics.history.length === 0 ? <p className="text-center py-10 text-[#707780]">Sem histórico ainda.</p> : (
