@@ -2,7 +2,7 @@
 import MarketTicker from './components/MarketTicker';
 import NewsCard, { NewsCardSkeleton } from './components/NewsCard';
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Check, AlertTriangle, TrendingUp, Wallet, Calendar, User, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, BarChart3, DollarSign, Download, FileSpreadsheet, FileText, LogOut, Bell, Newspaper } from 'lucide-react';
+import { Plus, AlertTriangle, TrendingUp, Wallet, Calendar, X, Target, Briefcase, PiggyBank, TrendingDown, Activity, ArrowUpRight, ArrowDownRight, BarChart3, DollarSign, Download, FileSpreadsheet, FileText, LogOut, Bell, Newspaper } from 'lucide-react';
 import { supabase } from './supabase';
 import { exportToExcel, exportToPDF, formatTransactionsForExport, formatGoalsForExport, formatPatrimonyForExport } from './utils/export';
 
@@ -27,18 +27,30 @@ const formatMonthYear = (dateString: string) => {
   return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
 };
 
-// ===== COMPONENTES UI PREMIUM =====
-function Card({ children, className = '', gold = false }: any) {
-  return <div className={`card-premium ${gold ? 'card-gold' : ''} ${className}`}>{children}</div>;
+// ===== COMPONENTES UI =====
+function Card({ children, className = '', gold = false, onClick, ...rest }: any) {
+  return (
+    <div
+      {...rest}
+      onClick={onClick}
+      className={`card-premium ${gold ? 'card-gold' : ''} ${onClick ? 'cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5' : ''} ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function Badge({ children, variant = 'default' }: any) {
   const styles: any = {
-    default: 'bg-slate-100 text-slate-700', realized: 'bg-green-100 text-green-800',
+    default: 'bg-slate-100 text-slate-700',
+    realized: 'bg-green-100 text-green-800',
     projected: 'bg-slate-50 text-slate-600 border border-dashed border-slate-300',
-    warning: 'bg-yellow-100 text-yellow-800', danger: 'bg-red-100 text-red-800',
-    unexpected: 'bg-orange-100 text-orange-800', gold: 'bg-[#A9823A]/10 text-[#A9823A]',
-    navy: 'bg-[#0B1F33]/10 text-[#0B1F33]', success: 'bg-[#2F6B57]/10 text-[#2F6B57]',
+    warning: 'bg-yellow-100 text-yellow-800',
+    danger: 'bg-red-100 text-red-800',
+    unexpected: 'bg-orange-100 text-orange-800',
+    gold: 'bg-[#A9823A]/10 text-[#A9823A]',
+    navy: 'bg-[#0B1F33]/10 text-[#0B1F33]',
+    success: 'bg-[#2F6B57]/10 text-[#2F6B57]',
   };
   return <span className={`badge-premium ${styles[variant]}`}>{children}</span>;
 }
@@ -121,7 +133,7 @@ export default function FinanceDashboard() {
   const [useMockData, setUseMockData] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'flow' | 'health' | 'goals' | 'investments' | 'patrimony' | 'news'>('dashboard');
   const [patrimonyView, setPatrimonyView] = useState<'family' | 'Felipe' | 'Camila'>('family');
-  
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [viewFilter, setViewFilter] = useState<'all' | 'realized' | 'projected'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'Felipe' | 'Camila'>('all');
@@ -130,19 +142,16 @@ export default function FinanceDashboard() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Estados para Edição e Recorrência
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [recurringTemplates, setRecurringTemplates] = useState<any[]>([]);
-  
-  // Estados para Notícias
+
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsSource, setNewsSource] = useState<'all' | 'infomoney' | 'investing' | 'investopedia' | 'valor' | 'moneytimes'>('all');
-  
-  // Estados para Voz
+
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
-  
+
   const [formData, setFormData] = useState<any>({
     created_by: 'Felipe', type: 'despesa_variavel', category_id: '', amount: '',
     date: new Date().toISOString().slice(0, 10), description: '', status: 'realized', is_unexpected: false,
@@ -150,25 +159,8 @@ export default function FinanceDashboard() {
     is_recurring: false, recurring_day: '', recurring_end_date: '',
   });
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) setCurrentUser(savedUser);
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) loadData();
-  }, [currentUser]);
-
-  const handleLogin = (user: string) => {
-    setCurrentUser(user);
-    setFormData((prev: any) => ({ ...prev, created_by: user }));
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    setCurrentUser(null);
-  };
-const generateRecurringForMonth = async () => {
+  // ===== FUNÇÕES AUXILIARES =====
+  const generateRecurringForMonth = async () => {
     if (useMockData) return;
     try {
       const { data: templates } = await supabase.from('recurring_templates').select('*').eq('is_active', true);
@@ -187,54 +179,27 @@ const generateRecurringForMonth = async () => {
           });
         }
       }
-      await loadData();
-    } catch (error) { console.error('Erro ao gerar recorrências:', error); }
+    } catch (error) {
+      console.error('Erro ao gerar recorrências:', error);
+    }
   };
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
-      if (catsError) {
-        setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
-        setGoalContributions([]); setAssets([]); setLiabilities([]);
-        setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
-      } else {
-       setCategories(catsData || []);
-        const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
-        const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
-        const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
-        const { data: contributionsData } = await supabase.from('goal_contributions').select('*'); setGoalContributions(contributionsData || []);
-        const { data: assetsData } = await supabase.from('assets').select('*'); setAssets(assetsData || []);
-        const { data: liabilitiesData } = await supabase.from('liabilities').select('*'); setLiabilities(liabilitiesData || []);
-        const { data: historyData } = await supabase.from('patrimony_history').select('*').order('month', { ascending: true }); setPatrimonyHistory(historyData || []);
-        const { data: cashFlowData } = await supabase.from('cash_flow_history').select('*').order('month', { ascending: true }); setCashFlowHistory(cashFlowData || []);
-        setUseMockData(false);
-      }
-    } catch (error) {
-      setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
-      setGoalContributions([]); setAssets([]); setLiabilities([]);
-      setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
-    }
-      // ===== GERAR RECORRÊNCIAS DO MÊS =====
-  
-  // ===== GERAR HISTÓRICO DE FLUXO AUTOMATICAMENTE =====
   const generateCashFlowHistory = async () => {
     if (useMockData) return;
     try {
       const months = [...new Set(transactions.map((t: any) => t.date?.slice(0, 7)).filter(Boolean))].sort();
-      
+
       for (const month of months) {
         const monthTrans = transactions.filter((t: any) => t.date?.startsWith(month));
-        
+
         const income = monthTrans
           .filter((t: any) => t.type === 'receita' && t.status === 'realized')
           .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
-        
+
         const expenses = monthTrans
-          .filter((t: any) => (t.type === 'despesa_fixa' || t.type === 'despesa_variavel') && t.status === 'realized')
+          .filter((t: any) => (t.type === 'despesa_fixa' || t.type === 'despesa_variavel' || t.type === 'reserva') && t.status === 'realized')
           .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
-        
+
         const contributions = monthTrans
           .filter((t: any) => t.type === 'investimento' && t.status === 'realized')
           .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
@@ -254,7 +219,7 @@ const generateRecurringForMonth = async () => {
             .insert({ month, income, expenses, contributions });
         }
       }
-      
+
       const { data: historyData } = await supabase
         .from('cash_flow_history')
         .select('*')
@@ -264,12 +229,57 @@ const generateRecurringForMonth = async () => {
       console.error('Erro ao gerar histórico de fluxo:', error);
     }
   };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const { data: catsData, error: catsError } = await supabase.from('categories').select('*');
+      if (catsError) {
+        setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
+        setGoalContributions([]); setAssets([]); setLiabilities([]);
+        setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
+      } else {
+        setCategories(catsData || []);
+        const { data: budgetData } = await supabase.from('category_budgets').select('*'); setBudgets(budgetData || []);
+        const { data: goalsData } = await supabase.from('goals').select('*'); setGoals(goalsData || []);
+        const { data: transData } = await supabase.from('transactions').select('*').order('date', { ascending: false }); setTransactions(transData || []);
+        const { data: contributionsData } = await supabase.from('goal_contributions').select('*'); setGoalContributions(contributionsData || []);
+        const { data: assetsData } = await supabase.from('assets').select('*'); setAssets(assetsData || []);
+        const { data: liabilitiesData } = await supabase.from('liabilities').select('*'); setLiabilities(liabilitiesData || []);
+        const { data: historyData } = await supabase.from('patrimony_history').select('*').order('month', { ascending: true }); setPatrimonyHistory(historyData || []);
+        const { data: cashFlowData } = await supabase.from('cash_flow_history').select('*').order('month', { ascending: true }); setCashFlowHistory(cashFlowData || []);
+        setUseMockData(false);
+      }
+    } catch (error) {
+      setCategories([]); setBudgets([]); setGoals([]); setTransactions([]);
+      setGoalContributions([]); setAssets([]); setLiabilities([]);
+      setPatrimonyHistory([]); setCashFlowHistory([]); setUseMockData(true);
+    }
     setLoading(false);
     setTimeout(() => generateRecurringForMonth(), 1000);
     setTimeout(() => generateCashFlowHistory(), 1500);
   };
 
-  const monthlyTransactions = transactions.filter(t => 
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) setCurrentUser(savedUser);
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) loadData();
+  }, [currentUser]);
+
+  const handleLogin = (user: string) => {
+    setCurrentUser(user);
+    setFormData((prev: any) => ({ ...prev, created_by: user }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('currentUser');
+    setCurrentUser(null);
+  };
+
+  const monthlyTransactions = transactions.filter(t =>
     t.date && t.date.startsWith(selectedMonth)
   );
 
@@ -282,21 +292,19 @@ const generateRecurringForMonth = async () => {
     [monthlyTransactions, viewFilter, userFilter]
   );
 
-  // ===== MÉTRICAS CORRIGIDAS =====
+  // ===== MÉTRICAS =====
   const metrics = useMemo(() => {
-    const realizedIncome = monthlyTransactions.filter((t) => 
-  t.type === 'receita' && (t.status === 'realized' || t.status === 'projected')
-).reduce((sum, t) => sum + Number(t.amount), 0);
+    const realizedIncome = monthlyTransactions.filter((t) =>
+      t.type === 'receita' && (t.status === 'realized' || t.status === 'projected')
+    ).reduce((sum, t) => sum + Number(t.amount), 0);
     const projectedIncome = monthlyTransactions.filter((t) => t.type === 'receita' && t.status === 'projected').reduce((sum, t) => sum + Number(t.amount), 0);
-const realizedExpenses = monthlyTransactions.filter((t) => 
-  (t.type === 'despesa_fixa' || t.type === 'despesa_variavel' || t.type === 'reserva') && t.status === 'realized'
-).reduce((sum, t) => sum + Number(t.amount), 0);
+    const realizedExpenses = monthlyTransactions.filter((t) =>
+      (t.type === 'despesa_fixa' || t.type === 'despesa_variavel' || t.type === 'reserva') && t.status === 'realized'
+    ).reduce((sum, t) => sum + Number(t.amount), 0);
     const unexpectedExpenses = monthlyTransactions.filter((t) => t.is_unexpected && t.status === 'realized').reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const investments = monthlyTransactions.filter((t) => t.type === 'investimento' && t.status === 'realized');
     const totalAportes = investments.reduce((sum, t) => sum + Number(t.amount), 0);
-    
-    // Yield real do mês (baseado no campo yield_amount se existir)
     const monthlyYield = investments.reduce((sum, t) => sum + (Number(t.yield_amount) || 0), 0);
 
     const investmentTotals = {
@@ -308,9 +316,9 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     const saldo = realizedIncome - realizedExpenses;
     const saldoDisponivel = saldo - totalAportes;
 
-    return { 
-      realizedIncome, projectedIncome, realizedExpenses, unexpectedExpenses, 
-      totalAportes, saldo, saldoDisponivel, investmentTotals, investments, monthlyYield 
+    return {
+      realizedIncome, projectedIncome, realizedExpenses, unexpectedExpenses,
+      totalAportes, saldo, saldoDisponivel, investmentTotals, investments, monthlyYield
     };
   }, [monthlyTransactions, categories]);
 
@@ -355,7 +363,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     const hasEmergencyFund = assets.some((a) => a.asset_type === 'reserva' && a.value >= 10000);
     const debtRatio = patrimonyMetrics.totalAssets > 0 ? (patrimonyMetrics.totalLiabilities / patrimonyMetrics.totalAssets) * 100 : 0;
     const goalsProgress = goalsWithProgress.length > 0 ? goalsWithProgress.reduce((sum, g) => sum + g.percentage, 0) / goalsWithProgress.length : 0;
-    
+
     let healthStatus: 'green' | 'yellow' | 'red' = 'green';
     let healthLabel = 'Equilibrada';
     let healthScore = 0;
@@ -404,7 +412,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
   const handleExportPatrimonyExcel = () => exportToExcel(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Patrimônio');
   const handleExportPatrimonyPDF = () => exportToPDF(formatPatrimonyForExport(assets, liabilities), `patrimonio_${selectedMonth}`, 'Relatório Patrimonial');
 
-  // ===== RECONHECIMENTO DE VOZ =====
+  // ===== VOZ =====
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.');
@@ -424,9 +432,9 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
       let detectedCategory = '';
       let detectedType = 'despesa_variavel';
 
-      const amountMatch = transcript.match(/(\d+[.,]?\d*)\s*(reais|real|r\$|rs)/i) || 
-                          transcript.match(/(r\$|rs)\s*(\d+[.,]?\d*)/i) ||
-                          transcript.match(/\b(\d+[.,]?\d{2})\b/);
+      const amountMatch = transcript.match(/(\d+[.,]?\d*)\s*(reais|real|r\$|rs)/i) ||
+        transcript.match(/(r\$|rs)\s*(\d+[.,]?\d*)/i) ||
+        transcript.match(/\b(\d+[.,]?\d{2})\b/);
       if (amountMatch) detectedAmount = (amountMatch[2] || amountMatch[1]).replace(',', '.');
 
       if (transcript.includes('receita') || transcript.includes('ganhei') || transcript.includes('salário')) detectedType = 'receita';
@@ -453,17 +461,20 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     recognition.start();
   };
 
+  // ===== HANDLERS =====
   const handleAddTransaction = async (e: any) => {
     e.preventDefault();
     if (!formData.category_id) { alert('Selecione uma categoria!'); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const autoStatus = formData.date > today ? 'projected' : (formData.status || 'realized');
     if (useMockData) {
-      setTransactions((prev) => [...prev, { id: `t${Date.now()}`, ...formData, amount: parseFloat(formData.amount) }]);
+      setTransactions((prev) => [...prev, { id: `t${Date.now()}`, ...formData, amount: parseFloat(formData.amount), status: autoStatus }]);
     } else {
       try {
-        await supabase.from('transactions').insert({ 
-          created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount), 
-          type: formData.type, category_id: formData.category_id, status: formData.status, 
-          is_unexpected: formData.is_unexpected, description: formData.description 
+        await supabase.from('transactions').insert({
+          created_by: formData.created_by, date: formData.date, amount: parseFloat(formData.amount),
+          type: formData.type, category_id: formData.category_id, status: autoStatus,
+          is_unexpected: formData.is_unexpected, description: formData.description
         });
         await loadData();
       } catch (error: any) { alert(`Erro: ${error?.message}`); return; }
@@ -479,7 +490,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     if (useMockData) {
       setGoals((prev) => [...prev, { id: `g${Date.now()}`, ...newGoal, monthly_target: 0 }]);
     } else {
-      try { await supabase.from('goals').insert(newGoal); await loadData(); } 
+      try { await supabase.from('goals').insert(newGoal); await loadData(); }
       catch (error: any) { alert(`Erro: ${error.message}`); return; }
     }
     setFormData({ ...formData, goal_title: '', goal_target: '', goal_end: '' });
@@ -506,7 +517,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
   const handleDeleteTransaction = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
     if (useMockData) { setTransactions((prev) => prev.filter((t) => t.id !== id)); return; }
-    try { await supabase.from('transactions').delete().eq('id', id); await loadData(); } 
+    try { await supabase.from('transactions').delete().eq('id', id); await loadData(); }
     catch (error) { console.error('Erro ao excluir:', error); alert('Erro ao excluir lançamento'); }
   };
 
@@ -553,15 +564,13 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
     } catch (error: any) { alert(`Erro ao criar recorrência: ${error?.message}`); }
   };
 
-  
-
   const fetchNews = async (source: string = 'all') => {
     try {
       setNewsLoading(true);
       const response = await fetch(`/api/news?source=${source}`);
       if (!response.ok) throw new Error('Failed to fetch news');
       setNews(await response.json());
-    } catch (error) { console.error('Erro ao buscar notícias:', error); } 
+    } catch (error) { console.error('Erro ao buscar notícias:', error); }
     finally { setNewsLoading(false); }
   };
 
@@ -632,11 +641,11 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
           </div>
         </div>
       </header>
-      
+
       <MarketTicker />
-      
+
       <main className="max-w-5xl mx-auto p-6 space-y-6 animate-fade-in">
-        
+
         {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <>
@@ -648,14 +657,44 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Card className="p-5">
-                <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
-                {/* CORREÇÃO: Usa a variável totalAportes que já filtra pelo mês selecionado */}
+              <Card
+                className="p-5"
+                onClick={() => {
+                  console.log('👆 Clicou em Aportes do Mês');
+                  setActiveTab('investments');
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-5 h-5 text-[#A9823A]" />
+                  <h3 className="font-display font-bold text-[#0B1F33]">Aportes do Mês</h3>
+                </div>
                 <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
-                <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
+                <div className="flex gap-3 mt-4 text-xs text-[#707780]">
+                  <span>Ações: {formatBRL(metrics.investmentTotals.acoes)}</span>
+                  <span>•</span>
+                  <span>FIIs: {formatBRL(metrics.investmentTotals.fiis)}</span>
+                  <span>•</span>
+                  <span>USD: {formatUSD(metrics.investmentTotals.dolar)}</span>
+                </div>
+                <p className="text-xs text-[#A9823A] mt-3 flex items-center gap-1">
+                  <span>Ver detalhes</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </p>
               </Card>
-                            <Card className="p-5">
-                <div className="flex items-center gap-2 mb-3"><Briefcase className="w-5 h-5 text-[#A9823A]" /><h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3></div>
+
+              <Card
+                className="p-5"
+                onClick={() => {
+                  console.log('👆 Clicou em Total Investido');
+                  setActiveTab('investments');
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Briefcase className="w-5 h-5 text-[#A9823A]" />
+                  <h3 className="font-display font-bold text-[#0B1F33]">Total Investido</h3>
+                </div>
                 <p className="text-3xl font-bold text-[#0B1F33] font-display">{formatBRL(metrics.totalAportes)}</p>
                 <p className="text-xs text-[#707780] mt-2">{metrics.investments.length} aportes no mês</p>
               </Card>
@@ -736,7 +775,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
         {/* FLUXO */}
         {activeTab === 'flow' && (
           <div className="space-y-6">
-            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><BarChart3 className="text-[#A9823A]"/> Fluxo Financeiro</h2>
+            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><BarChart3 className="text-[#A9823A]" /> Fluxo Financeiro</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-[#2F6B57]" /><p className="text-xs text-[#707780] font-medium uppercase">Receitas</p></div>{flowMetrics.incomeChange >= 0 ? <ArrowUpRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowDownRight className="w-4 h-4 text-[#A94B4B]" />}</div><p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.income)}</p><p className={`text-xs mt-1 ${flowMetrics.incomeChange >= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.incomeChange >= 0 ? '+' : ''}{flowMetrics.incomeChange.toFixed(1)}% vs mês anterior</p></Card>
               <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><TrendingDown className="w-5 h-5 text-[#A94B4B]" /><p className="text-xs text-[#707780] font-medium uppercase">Despesas</p></div>{flowMetrics.expensesChange <= 0 ? <ArrowDownRight className="w-4 h-4 text-[#2F6B57]" /> : <ArrowUpRight className="w-4 h-4 text-[#A94B4B]" />}</div><p className="text-2xl font-bold text-[#0B1F33] font-display">{formatBRL(flowMetrics.expenses)}</p><p className={`text-xs mt-1 ${flowMetrics.expensesChange <= 0 ? 'text-[#2F6B57]' : 'text-[#A94B4B]'}`}>{flowMetrics.expensesChange >= 0 ? '+' : ''}{flowMetrics.expensesChange.toFixed(1)}% vs mês anterior</p></Card>
@@ -777,15 +816,15 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
         {/* SAÚDE */}
         {activeTab === 'health' && (
           <div className="space-y-6">
-            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Activity className="text-[#A9823A]"/> Saúde Financeira</h2>
+            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Activity className="text-[#A9823A]" /> Saúde Financeira</h2>
             <Card className={`p-6 text-center ${healthMetrics.healthStatus === 'green' ? 'bg-[#2F6B57]/5 border-[#2F6B57]/20' : healthMetrics.healthStatus === 'yellow' ? 'bg-[#B8860B]/5 border-[#B8860B]/20' : 'bg-[#A94B4B]/5 border-[#A94B4B]/20'}`}>
               <p className="text-4xl mb-2">{healthMetrics.healthStatus === 'green' ? '🟢' : healthMetrics.healthStatus === 'yellow' ? '' : '🔴'}</p>
               <h3 className="text-2xl font-bold font-display text-[#0B1F33]">{healthMetrics.healthLabel}</h3>
               <p className="text-[#707780] mt-1">Score: {healthMetrics.healthScore}/100</p>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-5"><h4 className="font-bold text-[#2F6B57] mb-2 flex items-center gap-1"><ArrowUpRight className="w-4 h-4"/> Pontos Fortes</h4><ul className="text-sm text-[#707780] space-y-1 list-disc pl-4">{healthMetrics.strengths.length ? healthMetrics.strengths.map((s,i)=><li key={i}>{s}</li>) : <li>Nenhum identificado</li>}</ul></Card>
-              <Card className="p-5"><h4 className="font-bold text-[#A94B4B] mb-2 flex items-center gap-1"><ArrowDownRight className="w-4 h-4"/> Atenção</h4><ul className="text-sm text-[#707780] space-y-1 list-disc pl-4">{healthMetrics.issues.length ? healthMetrics.issues.map((s,i)=><li key={i}>{s}</li>) : <li>Tudo sob controle</li>}</ul></Card>
+              <Card className="p-5"><h4 className="font-bold text-[#2F6B57] mb-2 flex items-center gap-1"><ArrowUpRight className="w-4 h-4" /> Pontos Fortes</h4><ul className="text-sm text-[#707780] space-y-1 list-disc pl-4">{healthMetrics.strengths.length ? healthMetrics.strengths.map((s, i) => <li key={i}>{s}</li>) : <li>Nenhum identificado</li>}</ul></Card>
+              <Card className="p-5"><h4 className="font-bold text-[#A94B4B] mb-2 flex items-center gap-1"><ArrowDownRight className="w-4 h-4" /> Atenção</h4><ul className="text-sm text-[#707780] space-y-1 list-disc pl-4">{healthMetrics.issues.length ? healthMetrics.issues.map((s, i) => <li key={i}>{s}</li>) : <li>Tudo sob controle</li>}</ul></Card>
             </div>
             <Card className="p-5">
               <h3 className="font-display font-bold text-[#0B1F33] mb-4">Métricas Detalhadas</h3>
@@ -817,7 +856,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
                 const today = new Date();
                 let durationText = "Sem prazo definido"; let daysLeft = 0; let progressTime = 0;
                 if (endDate) {
-                  const totalDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) || 1; 
+                  const totalDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
                   daysLeft = Math.ceil(Math.abs(endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                   const daysPassed = Math.ceil(Math.abs(today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
                   progressTime = Math.min(100, Math.max(0, (daysPassed / totalDays) * 100));
@@ -830,7 +869,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
                       <div>
                         <h3 className="font-display text-xl font-bold text-[#0B1F33]">{goal.title}</h3>
                         <div className="flex items-center gap-2 mt-1 text-xs text-[#707780]">
-                          <span>Início: {formatDateBR(goal.start_date || new Date().toISOString().slice(0,10))}</span>
+                          <span>Início: {formatDateBR(goal.start_date || new Date().toISOString().slice(0, 10))}</span>
                           {endDate && (<><span>•</span><span>Fim: {formatDateBR(goal.end_date)}</span></>)}
                         </div>
                       </div>
@@ -846,8 +885,8 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
                         <p className="mt-1">Faltam <span className="font-semibold text-[#0B1F33]">{formatBRL(goal.remaining)}</span></p>
                       </div>
                       <div className="flex gap-2">
-                         <div className="bg-[#0B1F33]/5 px-3 py-1.5 rounded text-xs text-center"><p className="text-[#707780]">Aportes</p><p className="font-bold text-[#0B1F33]">{formatBRL(goal.totalAportes)}</p></div>
-                         <div className="bg-[#A9823A]/5 px-3 py-1.5 rounded text-xs text-center"><p className="text-[#707780]">Rendimentos</p><p className="font-bold text-[#A9823A]">{formatBRL(goal.totalRendimentos)}</p></div>
+                        <div className="bg-[#0B1F33]/5 px-3 py-1.5 rounded text-xs text-center"><p className="text-[#707780]">Aportes</p><p className="font-bold text-[#0B1F33]">{formatBRL(goal.totalAportes)}</p></div>
+                        <div className="bg-[#A9823A]/5 px-3 py-1.5 rounded text-xs text-center"><p className="text-[#707780]">Rendimentos</p><p className="font-bold text-[#A9823A]">{formatBRL(goal.totalRendimentos)}</p></div>
                       </div>
                     </div>
                   </Card>
@@ -857,10 +896,10 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
           </div>
         )}
 
-        {/* INVESTIMENTOS - CORRIGIDO */}
+        {/* INVESTIMENTOS */}
         {activeTab === 'investments' && (
           <div className="space-y-4">
-            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Briefcase className="text-[#A9823A]"/> Investimentos</h2>
+            <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><Briefcase className="text-[#A9823A]" /> Investimentos</h2>
             <Card className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-[#0B1F33]/5 p-5 rounded-lg">
@@ -871,8 +910,8 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
                   <p className="text-sm text-[#707780]">Rendimentos</p>
                   <p className="text-3xl font-bold text-[#A9823A] mt-2 font-display">{formatBRL(metrics.monthlyYield || 0)}</p>
                   <p className="text-xs text-[#A9823A] mt-2 font-medium">
-                    {metrics.totalAportes > 0 
-                      ? `+${((metrics.monthlyYield || 0) / metrics.totalAportes * 100).toFixed(2)}% de rentabilidade` 
+                    {metrics.totalAportes > 0
+                      ? `+${((metrics.monthlyYield || 0) / metrics.totalAportes * 100).toFixed(2)}% de rentabilidade`
                       : 'Sem aportes no mês'}
                   </p>
                 </div>
@@ -880,8 +919,8 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
               <h3 className="font-display font-bold text-[#0B1F33] mb-3">Distribuição</h3>
               <div className="space-y-2">
                 {[
-                  { name: 'Ações', value: metrics.investmentTotals.acoes, color: 'bg-[#0B1F33]' }, 
-                  { name: 'FIIs', value: metrics.investmentTotals.fiis, color: 'bg-[#A9823A]' }, 
+                  { name: 'Ações', value: metrics.investmentTotals.acoes, color: 'bg-[#0B1F33]' },
+                  { name: 'FIIs', value: metrics.investmentTotals.fiis, color: 'bg-[#A9823A]' },
                   { name: 'Dólar', value: metrics.investmentTotals.dolar, color: 'bg-[#2F6B57]', isUSD: true }
                 ].map((item) => (
                   <div key={item.name} className="flex justify-between items-center p-3 bg-[#F7F5F0] rounded-lg">
@@ -903,17 +942,17 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
         {activeTab === 'patrimony' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><PiggyBank className="text-[#A9823A]"/> Patrimônio Líquido</h2>
+              <h2 className="font-display text-2xl font-bold text-[#0B1F33] flex items-center gap-2"><PiggyBank className="text-[#A9823A]" /> Patrimônio Líquido</h2>
               <div className="flex bg-white p-1 rounded-lg border border-[#0B1F33]/10">
-                {(['family', 'Felipe', 'Camila'] as const).map(v => (<button key={v} onClick={()=>setPatrimonyView(v)} className={`px-3 py-1 text-xs rounded-md ${patrimonyView===v ? 'bg-[#0B1F33] text-white' : 'text-[#707780]'}`}>{v==='family'?'Família':v}</button>))}
+                {(['family', 'Felipe', 'Camila'] as const).map(v => (<button key={v} onClick={() => setPatrimonyView(v)} className={`px-3 py-1 text-xs rounded-md ${patrimonyView === v ? 'bg-[#0B1F33] text-white' : 'text-[#707780]'}`}>{v === 'family' ? 'Família' : v}</button>))}
               </div>
             </div>
             <Card className="p-6 card-gold text-center">
               <p className="text-[#C5A45A] text-sm uppercase tracking-wider">Patrimônio Líquido</p>
               <p className="text-4xl font-bold font-display mt-2">{formatBRL(patrimonyMetrics.netPatrimony)}</p>
               <div className="flex justify-center gap-8 mt-6 text-sm">
-                 <div><p className="text-white/60">Ativos</p><p className="font-bold">{formatBRL(patrimonyMetrics.totalAssets)}</p></div>
-                 <div><p className="text-white/60">Passivos</p><p className="font-bold">{formatBRL(patrimonyMetrics.totalLiabilities)}</p></div>
+                <div><p className="text-white/60">Ativos</p><p className="font-bold">{formatBRL(patrimonyMetrics.totalAssets)}</p></div>
+                <div><p className="text-white/60">Passivos</p><p className="font-bold">{formatBRL(patrimonyMetrics.totalLiabilities)}</p></div>
               </div>
             </Card>
             <Card className="p-6">
@@ -1005,7 +1044,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
               </h2>
               <button onClick={() => setIsDrawerOpen(false)} className="p-1 hover:bg-[#F7F5F0] rounded"><X className="w-5 h-5 text-[#707780]" /></button>
             </div>
-            
+
             <div className="p-6">
               {activeTab === 'goals' ? (
                 <form onSubmit={handleAddGoal} className="space-y-5">
@@ -1069,7 +1108,7 @@ const realizedExpenses = monthlyTransactions.filter((t) =>
                     <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full rounded-lg border border-[#0B1F33]/20 px-4 py-3 text-sm bg-[#F7F5F0] focus:outline-none focus:border-[#A9823A] transition-colors" placeholder="Ex: Compras do mês ou clique em 'Falar'" />
                     {voiceTranscript && (<p className="text-xs text-[#707780] italic bg-[#F7F5F0] p-2 rounded border border-dashed border-[#0B1F33]/10">"{voiceTranscript}"</p>)}
                   </div>
-                  
+
                   <div className="space-y-3 p-4 bg-[#A9823A]/5 rounded-lg border border-[#A9823A]/20">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={formData.is_recurring || false} onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })} className="w-4 h-4 rounded border-[#0B1F33]/20 text-[#A9823A] focus:ring-[#A9823A]" />
