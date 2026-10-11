@@ -29,11 +29,22 @@ const formatMonthYear = (dateString: string) => {
 
 // ===== COMPONENTES UI =====
 function Card({ children, className = '', gold = false, onClick, ...rest }: any) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        {...rest}
+        className={`card-premium ${gold ? 'card-gold' : ''} cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5 text-left w-full ${className}`}
+      >
+        {children}
+      </button>
+    );
+  }
   return (
     <div
       {...rest}
-      onClick={onClick}
-      className={`card-premium ${gold ? 'card-gold' : ''} ${onClick ? 'cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5' : ''} ${className}`}
+      className={`card-premium ${gold ? 'card-gold' : ''} ${className}`}
     >
       {children}
     </div>
